@@ -2,12 +2,22 @@
 
 import Navbar from "@/components/Navbar";
 import Live from "@/components/Live";
-import RightSidebar  from "@/components/RightSidebar";
+import RightSidebar from "@/components/RightSidebar";
 import LeftSidebar from "@/components/LeftSidebar";
 import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
-import { handleCanvaseMouseMove, handleCanvasMouseDown, handleCanvasMouseUp, handleCanvasObjectModified, handleResize, initializeFabric, renderCanvas } from "@/lib/canvas";
-import { ActiveElement } from "@/types/type";
+import {
+  handleCanvaseMouseMove,
+  handleCanvasMouseDown,
+  handleCanvasMouseUp,
+  handleCanvasObjectModified,
+  handleCanvasObjectScaling,
+  handleCanvasSelectionCreated,
+  handleResize,
+  initializeFabric,
+  renderCanvas,
+} from "@/lib/canvas";
+import { ActiveElement, Attributes } from "@/types/type";
 import { useMutation, useRedo, useStorage, useUndo } from "@/liveblocks.config";
 import { defaultNavElement } from "@/constants";
 import { handleDelete, handleKeyDown } from "@/lib/key-events";
@@ -17,18 +27,29 @@ export default function Page() {
   const redo = useRedo();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricRef = useRef<fabric.Canvas | null>(null); 
+  const fabricRef = useRef<fabric.Canvas | null>(null);
   const isDrawing = useRef(false);
   const shapeRef = useRef<fabric.Object | null>(null);
   const selectedShapeRef = useRef<String | null>("rectangle");
   const activeObjectRef = useRef<fabric.Object | null>(null);
-  const canvasObjects = useStorage((root)=> root.canvasObjects)
+  const canvasObjects = useStorage((root) => root.canvasObjects);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const isEditingRef = useRef(false);
 
-  const syncShapeInStorage = useMutation(({storage}, object) => {
-    if(!object) return;
+  const [elementAttributes, setElementAttributes] = useState<Attributes>({
+    width: "",
+    height: "",
+    fontSize: "",
+    fontFamily: "",
+    fontWeight: "",
+    fill: "#aabbcc",
+    stroke: "#aabbcc",
+  });
 
-    const {objectId} = object;
+  const syncShapeInStorage = useMutation(({ storage }, object) => {
+    if (!object) return;
+
+    const { objectId } = object;
 
     const shapeData = object.toJSON();
     shapeData.objectId = objectId;
@@ -36,7 +57,7 @@ export default function Page() {
     const canvasObjects = storage.get("canvasObjects");
 
     canvasObjects.set(objectId, shapeData);
-  }, [])
+  }, []);
 
   const [activeElement, setActiveElement] = useState<ActiveElement>({
     name: "",
@@ -44,78 +65,78 @@ export default function Page() {
     icon: "",
   });
 
-  const deleteAllShapes = useMutation(({storage}) => {
+  const deleteAllShapes = useMutation(({ storage }) => {
     const canvasObjects = storage.get("canvasObjects");
 
-    if(!canvasObjects || canvasObjects.size === 0) return true;
+    if (!canvasObjects || canvasObjects.size === 0) return true;
 
-    for(const [key,  value] of canvasObjects.entries()) {
+    for (const [key, value] of canvasObjects.entries()) {
       canvasObjects.delete(key);
     }
 
     return canvasObjects.size === 0;
-  }, [])
+  }, []);
 
-  const deleteShapeFromStorage = useMutation(({storage}, objectId) => {
+  const deleteShapeFromStorage = useMutation(({ storage }, objectId) => {
     const canvasObjects = storage.get("canvasObjects");
     canvasObjects.delete(objectId);
-  }, [])
+  }, []);
 
   const handleActiveElement = (elem: ActiveElement) => {
     setActiveElement(elem);
 
     switch (elem?.value) {
-      case 'reset':
+      case "reset":
         deleteAllShapes();
         fabricRef.current?.clear();
-        setActiveElement(defaultNavElement)
-        break;
-    
-      case 'delete':
-        handleDelete(fabricRef.current as any, deleteShapeFromStorage)
-        setActiveElement(defaultNavElement)
+        setActiveElement(defaultNavElement);
         break;
 
-      case 'image':
+      case "delete":
+        handleDelete(fabricRef.current as any, deleteShapeFromStorage);
+        setActiveElement(defaultNavElement);
+        break;
+
+      case "image":
         imageInputRef.current?.click();
         isDrawing.current = false;
 
-        if(fabricRef.current) {
+        if (fabricRef.current) {
           fabricRef.current.isDrawingMode = false;
         }
-        break;  
+        break;
       default:
         break;
     }
 
     selectedShapeRef.current = elem?.value as string;
-  }
+  };
 
   useEffect(() => {
-    const canvas = initializeFabric({canvasRef, fabricRef})
+    const canvas = initializeFabric({ canvasRef, fabricRef });
 
-    canvas.on("mouse:down", (options)=> {
+    canvas.on("mouse:down", (options) => {
       handleCanvasMouseDown({
         options,
         canvas,
         isDrawing,
         shapeRef,
-        selectedShapeRef
-      })
-    })
+        selectedShapeRef,
+      });
+    });
 
-    canvas.on("mouse:move", (options)=> {
+    canvas.on("mouse:move", (options) => {
       handleCanvaseMouseMove({
         options,
         canvas,
         isDrawing,
         shapeRef,
         selectedShapeRef,
-        syncShapeInStorage
-      })
-    })
+        syncShapeInStorage,
+      });
+    });
 
-    canvas.on("mouse:up", (options)=> {
+    canvas.on("mouse:up", (options) => {
       handleCanvasMouseUp({
         canvas,
         isDrawing,
@@ -123,20 +144,35 @@ export default function Page() {
         selectedShapeRef,
         syncShapeInStorage,
         setActiveElement,
-        activeObjectRef
-      })
-    })
+        activeObjectRef,
+      });
+    });
 
-    canvas.on("object:modified", (options)=> {
+    canvas.on("object:modified", (options) => {
       handleCanvasObjectModified({
         options,
-        syncShapeInStorage
-      })
-    })
+        syncShapeInStorage,
+      });
+    });
+
+    canvas.on("selection:created", (options: any) => {
+      handleCanvasSelectionCreated({
+        options,
+        isEditingRef,
+        setElementAttributes,
+      });
+    });
+
+    canvas.on("object:scaling", (options: any) => {
+      handleCanvasObjectScaling({
+        options,
+        setElementAttributes,
+      });
+    });
 
     window.addEventListener("resize", () => {
-      handleResize({ canvas: fabricRef.current })
-    })
+      handleResize({ canvas: fabricRef.current });
+    });
 
     window.addEventListener("keydown", (e) => {
       handleKeyDown({
@@ -145,46 +181,51 @@ export default function Page() {
         undo,
         redo,
         syncShapeInStorage,
-        deleteShapeFromStorage
-      })
-    })
+        deleteShapeFromStorage,
+      });
+    });
 
     return () => {
       canvas.dispose();
-    }
+    };
   }, []);
 
   useEffect(() => {
     renderCanvas({
       fabricRef,
       canvasObjects,
-      activeObjectRef
-    })
-  }, [canvasObjects])
+      activeObjectRef,
+    });
+  }, [canvasObjects]);
 
   return (
     <main className='h-screen overflow-hidden'>
-      <Navbar 
+      <Navbar
         activeElement={activeElement}
         handleActiveElement={handleActiveElement}
         imageInputRef={imageInputRef}
-        handleImageUpload={(e:any) => {
+        handleImageUpload={(e: any) => {
           e.stopPropagation();
 
           handleImageUpload({
             file: e.target.files[0],
             canvas: fabricRef as any,
             shapeRef,
-            syncShapeInStorage
-          })
+            syncShapeInStorage,
+          });
         }}
       />
       <section className='flex h-full flex-row'>
-        <LeftSidebar
-          allShapes={Array.from(canvasObjects)}
+        <LeftSidebar allShapes={Array.from(canvasObjects)} />
+        <Live canvasRef={canvasRef} />
+        <RightSidebar
+          elementAttributes={elementAttributes}
+          setElementAttributes={setElementAttributes}
+          fabricRef={fabricRef}
+          isEditingRef={isEditingRef}
+          activeObjectRef={activeObjectRef}
+          syncShapeInStorage={syncShapeInStorage}
         />
-        <Live canvasRef={canvasRef}/>
-        {/* <RightSidebar/> */}
       </section>
     </main>
   );
