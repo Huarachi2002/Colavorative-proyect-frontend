@@ -4,19 +4,27 @@ import {
   useBroadcastEvent,
   useEventListener,
   useMyPresence,
-  useOthers,
 } from "@/liveblocks.config";
 import CursorChat from "./cursor/CursorChat";
 import { CursorMode, CursorState, Reaction, ReactionEvent } from "@/types/type";
 import useInterval from "@/hooks/useInterval";
+import { Comments } from "./comments/Comments";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@radix-ui/react-context-menu";
+import { shortcuts } from "@/constants";
 
 type Props = {
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
-}
+  undo: () => void;
+  redo: () => void;
+};
 
-const Live = ({canvasRef}: Props) => {
-  const others = useOthers();
-  const [{ cursor }, updateMyPresence] = useMyPresence() as any;
+const Live = ({ canvasRef, undo, redo }: Props) => {
+  const [{ cursor }, updateMyPresence] = useMyPresence();
 
   const [cursorState, setcursorState] = useState<CursorState>({
     mode: CursorMode.Hidden,
@@ -107,6 +115,26 @@ const Live = ({canvasRef}: Props) => {
     [cursorState.mode, setcursorState]
   );
 
+  const handleContextMenuClick = useCallback((key: string) => {
+    switch (key) {
+      case "Chat":
+        setcursorState({
+          mode: CursorMode.Chat,
+          previousMessage: null,
+          message: "",
+        });
+        break;
+      case "Deshacer":
+        undo();
+        break;
+      case "Rehacer":
+        redo();
+        break;
+      default:
+        break;
+    }
+  }, []);
+
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "/") {
@@ -153,31 +181,45 @@ const Live = ({canvasRef}: Props) => {
   }, []);
 
   return (
-    <div
-      id="canvas"
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      className='boder-5 flex h-[100vh] w-full items-center justify-center'
-    >
-      <canvas ref={canvasRef}/>
+    <ContextMenu>
+      <ContextMenuTrigger
+        id='canvas'
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        className='context relative flex h-full w-full flex-1 items-center justify-center'
+      >
+        <canvas ref={canvasRef} />
 
-      {cursor && (
-        <CursorChat
-          cursor={cursor}
-          cursorState={cursorState}
-          setCursorState={setcursorState}
-          updateMyPresence={updateMyPresence}
-        />
-      )}
+        {cursor && (
+          <CursorChat
+            cursor={cursor}
+            cursorState={cursorState}
+            setCursorState={setcursorState}
+            updateMyPresence={updateMyPresence}
+          />
+        )}
 
-      {/* {cursorState.mode === CursorMode.ReactionSelector && (
-        <ReactionSelector setReaction={setReactions} />
-      )} */}
+        {/* {cursorState.mode === CursorMode.ReactionSelector && (
+          <ReactionSelector setReaction={setReactions} />
+        )} */}
 
-      <LiveCursors others={others} />
-    </div>
+        <LiveCursors />
+      </ContextMenuTrigger>
+      <ContextMenuContent className='rigth-menu-content w-40'>
+        {shortcuts.map((item) => (
+          <ContextMenuItem
+            key={item.key}
+            onClick={() => handleContextMenuClick(item.name)}
+            className='right-menu-item'
+          >
+            <p className='text-xs text-primary-grey-300'>{item.name}</p>
+            <p className='text-xs text-primary-grey-300'>{item.shortcut}</p>
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 

@@ -25,7 +25,7 @@
     "target": "es2018",
     "outDir": "./dist",
     "rootDir": "./",
-    "moduleResolution": "node"
+    "moduleResolution": "node16"
   },
   "include": [
     "next-env.d.ts",

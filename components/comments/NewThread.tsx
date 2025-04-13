@@ -68,8 +68,8 @@ export const NewThread = ({ children }: Props) => {
 
       setCreatingCommentState("placed");
       setComposerCoords({
-        x: e.clientX,
-        y: e.clientY,
+        x: e.pageX,
+        y: e.pageY,
       });
     };
 

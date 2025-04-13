@@ -1,5 +1,6 @@
 import { createClient, LiveMap } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
+import { ReactionEvent } from "./types/type";
 
 const client = createClient({
   publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!,
@@ -14,12 +15,15 @@ const client = createClient({
 });
 
 // Ejemplo de tipados del estado compartido
-type Presence = {};
+export type Presence = {
+  cursor: { x: number; y: number } | null;
+  message: string | null;
+};
 type Storage = {
   canvasObjects: LiveMap<string, any>;
 };
 type UserMeta = {};
-type RoomEvent = {};
+type RoomEvent = ReactionEvent;
 export type ThreadMetadata = {
   resolved: boolean;
   zIndex: number;

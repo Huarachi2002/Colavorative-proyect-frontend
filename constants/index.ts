@@ -59,11 +59,11 @@ export const navElements = [
     value: "reset",
     name: "Reset",
   },
-  {
-    icon: "/assets/comments.svg",
-    value: "comments",
-    name: "Comments",
-  },
+  // {
+  //   icon: "/assets/comments.svg",
+  //   value: "comments",
+  //   name: "Comments",
+  // },
 ];
 
 export const defaultNavElement = {
@@ -183,17 +183,12 @@ export const shortcuts = [
   },
   {
     key: "2",
-    name: "Undo",
-    shortcut: "⌘ + Z",
+    name: "Deshacer",
+    shortcut: "Window + Z",
   },
   {
     key: "3",
-    name: "Redo",
-    shortcut: "⌘ + Y",
-  },
-  {
-    key: "4",
-    name: "Reactions",
-    shortcut: "E",
+    name: "Rehacer",
+    shortcut: "Window + Y",
   },
 ];
