@@ -6,9 +6,8 @@ import {
   useMyPresence,
 } from "@/liveblocks.config";
 import CursorChat from "./cursor/CursorChat";
-import { CursorMode, CursorState, Reaction, ReactionEvent } from "@/types/type";
+import { CursorMode, CursorState, Reaction } from "@/types/type";
 import useInterval from "@/hooks/useInterval";
-import { Comments } from "./comments/Comments";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -34,29 +33,29 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
 
   const broadcast = useBroadcastEvent();
 
-  useInterval(() => {
-    if (
-      cursorState.mode === CursorMode.Reaction &&
-      cursorState.isPressed &&
-      cursor
-    ) {
-      setReaction((reaction) =>
-        reaction.concat([
-          {
-            point: { x: cursor.x, y: cursor.y },
-            value: cursorState.reaction,
-            timestamp: Date.now(),
-          },
-        ])
-      );
+  // useInterval(() => {
+  //   if (
+  //     cursorState.mode === CursorMode.Reaction &&
+  //     cursorState.isPressed &&
+  //     cursor
+  //   ) {
+  //     setReaction((reaction) =>
+  //       reaction.concat([
+  //         {
+  //           point: { x: cursor.x, y: cursor.y },
+  //           value: cursorState.reaction,
+  //           timestamp: Date.now(),
+  //         },
+  //       ])
+  //     );
 
-      broadcast({
-        x: cursor.x,
-        y: cursor.y,
-        value: cursorState.reaction,
-      });
-    }
-  }, 100);
+  //     broadcast({
+  //       x: cursor.x,
+  //       y: cursor.y,
+  //       value: cursorState.reaction,
+  //     });
+  //   }
+  // }, 100);
 
   // useEventListener((eventData) => {
   //   const event = eventData.event as ReactionEvent;
@@ -79,7 +78,9 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
       const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
       const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
 
-      updateMyPresence({ cursor: { x, y } });
+      if (!cursor || cursor.x !== x || cursor.y !== y) {
+        updateMyPresence({ cursor: { x, y } });
+      }
     }
   }, []);
 
@@ -101,18 +102,18 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
           : state
       );
     },
-    [cursorState.mode, setcursorState]
+    [updateMyPresence]
   );
 
   const handlePointerUp = useCallback(
     (event: React.PointerEvent) => {
       setcursorState((state: CursorState) =>
         cursorState.mode === CursorMode.Reaction
-          ? { ...state, isPressed: true }
+          ? { ...state, isPressed: false }
           : state
       );
     },
-    [cursorState.mode, setcursorState]
+    [setcursorState]
   );
 
   const handleContextMenuClick = useCallback((key: string) => {
