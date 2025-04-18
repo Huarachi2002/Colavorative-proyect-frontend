@@ -1,12 +1,12 @@
 import { Work_Sans } from "next/font/google";
 
 import "./globals.css";
-import type { ReactNode } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Room from "./Room";
+import { Metadata } from "next";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "IUXC",
   description: "Primer Parcial SW 1",
 };
@@ -23,17 +23,8 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body className={`${workSans.className} bg-primary-grey-200`}>
-        <Room>{children}</Room>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
 }
-
-// export default RootLayout;
-// export default function RootLayout({ children }: { children: ReactNode }) {
-//   return (
-//     <html lang='en'>
-//       <body>{children}</body>
-//     </html>
-//   );
-// }
