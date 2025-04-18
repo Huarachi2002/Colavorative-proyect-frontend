@@ -2,18 +2,20 @@
 
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import Room from "./Room"; // Usa el Room adaptado
+import Room from "./Room";
 
 // Importa tu App de forma dinámica para evitar problemas con SSR
 const ProjectCanvas = dynamic(() => import("./ProjectCanvas"), { ssr: false });
 
 export default function ProjectPage() {
   const params = useParams();
-  const id = params?.id as string | undefined;
-
+  // Extraer id como string, con manejo de casos donde podría ser un array
+  const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
   return (
-    <Room projectId={id as string}>
-      <ProjectCanvas projectId={id as string} />
-    </Room>
+    <div className='h-full'>
+      <Room projectId={projectId}>
+        <ProjectCanvas />
+      </Room>
+    </div>
   );
 }

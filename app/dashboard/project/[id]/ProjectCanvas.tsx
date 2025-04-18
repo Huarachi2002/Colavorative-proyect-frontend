@@ -24,11 +24,7 @@ import { defaultNavElement } from "@/constants";
 import { handleDelete, handleKeyDown } from "@/lib/key-events";
 import { handleImageUpload } from "@/lib/shapes";
 
-interface ProjectCanvasProps {
-  projectId: string;
-}
-
-export default function ProjectCanvas({ projectId }: ProjectCanvasProps) {
+export default function ProjectCanvas() {
   const undo = useUndo();
   const redo = useRedo();
 
@@ -213,9 +209,6 @@ export default function ProjectCanvas({ projectId }: ProjectCanvasProps) {
 
   return (
     <main className='h-screen overflow-hidden'>
-      <div className='flex items-center border-b border-gray-200 px-4 py-2'>
-        <h1 className='text-lg font-medium'>Proyecto {projectId}</h1>
-      </div>
       <Navbar
         activeElement={activeElement}
         handleActiveElement={handleActiveElement}
@@ -232,7 +225,9 @@ export default function ProjectCanvas({ projectId }: ProjectCanvasProps) {
         }}
       />
       <section className='flex h-full flex-row'>
-        <LeftSidebar allShapes={Array.from(canvasObjects)} />
+        <LeftSidebar
+          allShapes={canvasObjects ? Array.from(canvasObjects) : []}
+        />
         <Live canvasRef={canvasRef} undo={undo} redo={redo} />
         <RightSidebar
           elementAttributes={elementAttributes}

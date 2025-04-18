@@ -4,19 +4,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
 type User = {
-  id: string;
+  id: number;
   name: string;
   email: string;
+  avatar?: string;
 } | null;
 
 type AuthContextType = {
   user: User;
   login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
@@ -25,51 +29,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.log("Error loading user from localStorage:", error);
+      localStorage.removeItem("user");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     if (!isLoading) {
-      const publicRoutes = ["/login", "/signup"];
+      const isPublicPath = PUBLIC_PATHS.includes(pathname!);
 
-      if (
-        !user &&
-        !publicRoutes.includes(pathname) &&
-        !pathname.includes("/_next")
-      ) {
+      if (!user && !isPublicPath) {
         router.push("/login");
-      }
-
-      if (user && publicRoutes.includes(pathname)) {
+      } else if (user && isPublicPath) {
         router.push("/dashboard");
       }
     }
-  }, [user, pathname, isLoading, router]);
+  }, [isLoading, user, pathname, router]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
 
     try {
+      // TODO: Implement login logic here backend
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
+      if (password.length < 6) {
+        throw new Error("Credenciales incorrectas");
+      }
+
       const mockUser = {
-        id: "1",
+        id: 1, //TODO: Mock user ID, replace with actual ID from backend
         name: email.split("@")[0],
         email,
+        avatar: `https://ui-avatars.com/api/?name=${email.split("@")[0]}&background=random`,
       };
 
       setUser(mockUser);
-
       localStorage.setItem("user", JSON.stringify(mockUser));
+
       router.push("/dashboard");
     } catch (error) {
       console.error("Error during login:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (name: string, email: string, password: string) => {
+    setIsLoading(true);
+
+    try {
+      //TODO: Implement signup logic here backend
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      router.push("/login?registered=true");
+    } catch (error) {
+      console.error("Error during signup:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -83,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
       {!isLoading && children}
     </AuthContext.Provider>
   );

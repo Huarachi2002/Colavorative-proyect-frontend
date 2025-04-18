@@ -6,10 +6,16 @@ import { ClientSideSuspense } from "@liveblocks/react";
 import { LiveMap } from "@liveblocks/client";
 import { Loader } from "lucide-react";
 
-export default function Room({ children }: { children: ReactNode }) {
+export default function Room({
+  children,
+  projectId,
+}: {
+  children: ReactNode;
+  projectId: string;
+}) {
   return (
     <RoomProvider
-      id='my-room'
+      id={`project-${projectId}`}
       initialPresence={{
         cursor: null,
         cursorColor: null,

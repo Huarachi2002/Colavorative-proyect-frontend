@@ -1,4 +1,4 @@
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import { SessionProvider } from "next-auth/react";
 import { AppProps } from "next/app";
 

@@ -71,18 +71,21 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
   //   );
   // });
 
-  const handlePointerMove = useCallback((event: React.PointerEvent) => {
-    event.preventDefault();
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent) => {
+      event.preventDefault();
 
-    if (cursor === null || cursorState.mode !== CursorMode.ReactionSelector) {
-      const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
-      const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
+      if (cursor === null || cursorState.mode !== CursorMode.ReactionSelector) {
+        const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
+        const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
 
-      if (!cursor || cursor.x !== x || cursor.y !== y) {
-        updateMyPresence({ cursor: { x, y } });
+        if (!cursor || cursor.x !== x || cursor.y !== y) {
+          updateMyPresence({ cursor: { x, y } });
+        }
       }
-    }
-  }, []);
+    },
+    [cursor, cursorState.mode, updateMyPresence]
+  );
 
   const handlePointerLeave = useCallback((event: React.PointerEvent) => {
     setcursorState({ mode: CursorMode.Hidden });
@@ -97,7 +100,7 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
       updateMyPresence({ cursor: { x, y } });
 
       setcursorState((state: CursorState) =>
-        cursorState.mode === CursorMode.Reaction
+        state.mode === CursorMode.Reaction
           ? { ...state, isPressed: true }
           : state
       );
@@ -105,36 +108,36 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
     [updateMyPresence]
   );
 
-  const handlePointerUp = useCallback(
-    (event: React.PointerEvent) => {
-      setcursorState((state: CursorState) =>
-        cursorState.mode === CursorMode.Reaction
-          ? { ...state, isPressed: false }
-          : state
-      );
-    },
-    [setcursorState]
-  );
-
-  const handleContextMenuClick = useCallback((key: string) => {
-    switch (key) {
-      case "Chat":
-        setcursorState({
-          mode: CursorMode.Chat,
-          previousMessage: null,
-          message: "",
-        });
-        break;
-      case "Deshacer":
-        undo();
-        break;
-      case "Rehacer":
-        redo();
-        break;
-      default:
-        break;
-    }
+  const handlePointerUp = useCallback((event: React.PointerEvent) => {
+    setcursorState((state) =>
+      state.mode === CursorMode.Reaction
+        ? { ...state, isPressed: false }
+        : state
+    );
   }, []);
+
+  const handleContextMenuClick = useCallback(
+    (key: string) => {
+      switch (key) {
+        case "Chat":
+          setcursorState({
+            mode: CursorMode.Chat,
+            previousMessage: null,
+            message: "",
+          });
+          break;
+        case "Deshacer":
+          undo();
+          break;
+        case "Rehacer":
+          redo();
+          break;
+        default:
+          break;
+      }
+    },
+    [undo, redo]
+  );
 
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
@@ -189,9 +192,9 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
-        className='context relative flex h-full w-full flex-1 items-center justify-center'
+        className='relative flex h-full w-full flex-1 items-center justify-center'
       >
-        <canvas ref={canvasRef} />
+        <canvas ref={canvasRef} className='h-full w-full' />
 
         {cursor && (
           <CursorChat

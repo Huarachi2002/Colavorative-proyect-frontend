@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 import Image from "next/image";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const searchParams = useSearchParams();
+  const registered = searchParams.get("registered");
+
+  useEffect(() => {
+    if (registered === "true") {
+      toast.success("Registro exitoso. Puedes iniciar sesión ahora.");
+    }
+  }, [registered]);
 
   const handleLogin = async (email: string, password: string) => {
     setIsLoading(true);
@@ -16,8 +26,8 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (error) {
+      toast.error("Error al iniciar sesión. Verifica tus credenciales.");
       console.error("Error al iniciar sesión:", error);
-      // Aquí podrías mostrar un mensaje de error
     } finally {
       setIsLoading(false);
     }
@@ -26,7 +36,7 @@ export default function LoginPage() {
   return (
     <div className='flex min-h-screen w-full'>
       {/* Columna Izquierda - Formulario */}
-      <div className='bg-primary-grey-500 flex w-full flex-col items-center justify-center px-4 sm:px-8 md:w-1/2 lg:px-12'>
+      <div className='flex w-full flex-col items-center justify-center bg-primary-grey-500 px-4 sm:px-8 md:w-1/2 lg:px-12'>
         <div className='w-full max-w-md space-y-6'>
           <div className='space-y-2 text-center'>
             <h1 className='text-3xl font-bold tracking-tight'>Bienvenido</h1>
@@ -40,7 +50,7 @@ export default function LoginPage() {
       </div>
 
       {/* Columna Derecha - Banner Visual */}
-      <div className='bg-primary-blue hidden md:block md:w-1/2'>
+      <div className='hidden bg-primary-blue md:block md:w-1/2'>
         <div className='relative flex h-full w-full items-center justify-center overflow-hidden'>
           <div className='absolute inset-0 z-10 bg-black/20' />
           <Image
