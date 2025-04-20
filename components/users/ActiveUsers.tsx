@@ -27,7 +27,7 @@ const ActiveUsers = () => {
             return (
               <Avatar
                 key={connectionId}
-                name={generateRandomName()}
+                name={info.avatar} //TODO: use a better name
                 otherStyles='-ml-3'
               />
             );

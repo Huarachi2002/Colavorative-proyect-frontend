@@ -187,7 +187,7 @@ export default function DashboardLayout({
 
       {/* Barra superior mobile */}
       <div className='md:hidden'>
-        <div className='flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2'>
+        {/* <div className='flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2'>
           <h1 className='text-lg font-bold'>IUXC Platform</h1>
           <button
             type='button'
@@ -200,10 +200,10 @@ export default function DashboardLayout({
               <Menu className='h-6 w-6' aria-hidden='true' />
             )}
           </button>
-        </div>
+        </div> */}
 
         {/* Menú móvil */}
-        {isMobileMenuOpen && (
+        {/* {isMobileMenuOpen && (
           <div className='absolute inset-x-0 top-[53px] z-10 border-b border-gray-200 bg-white shadow-lg'>
             <div className='space-y-1 px-2 py-3'>
               {navigationItems.map((item) => (
@@ -218,7 +218,7 @@ export default function DashboardLayout({
               </button>
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Contenido principal - Ajustado para tener en cuenta el ancho de la barra lateral */}
@@ -228,10 +228,8 @@ export default function DashboardLayout({
           isSiderbarOpen ? "md:pl-64" : "md:pl-20"
         )}
       >
-        <div className='h-full py-6'>
-          <div className='mx-auto max-w-full px-4 sm:px-6 lg:px-8'>
-            {children}
-          </div>
+        <div className='mt-3 h-full w-full'>
+          <div className='mx-auto max-w-full'>{children}</div>
         </div>
       </main>
     </div>

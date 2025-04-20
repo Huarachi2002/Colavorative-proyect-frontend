@@ -13,9 +13,11 @@ export default function Room({
   children: ReactNode;
   projectId: string;
 }) {
+  const roomId = `project-${projectId}`;
+
   return (
     <RoomProvider
-      id={`project-${projectId}`}
+      id={roomId}
       initialPresence={{
         cursor: null,
         cursorColor: null,
