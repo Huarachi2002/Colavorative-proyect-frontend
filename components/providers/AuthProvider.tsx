@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_ROUTES } from "@/lib/routes";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -20,7 +21,11 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
+const PUBLIC_PATHS = [
+  APP_ROUTES.AUTH.LOGIN,
+  APP_ROUTES.AUTH.SIGNUP,
+  APP_ROUTES.AUTH.FORGOT_PASSWORD,
+];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
@@ -29,35 +34,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    async function loadUserSession() {
+      try {
+        // Intentar cargar usuario desde la sesión guardada
+        const storedUser = localStorage.getItem("user");
+
+        if (storedUser) {
+          // Usuario existente en localStorage
+          setUser(JSON.parse(storedUser));
+        } else {
+          // En producción, esto sería una llamada a tu API
+          // const response = await fetch("/api/auth/me");
+          // if (response.ok) {
+          //   const userData = await response.json();
+          //   setUser(userData);
+          //   localStorage.setItem("user", JSON.stringify(userData));
+          // }
+        }
+      } catch (error) {
+        console.error("Error loading user session:", error);
+      } finally {
+        setIsLoading(false); // Marcar la carga como completada, sin importar el resultado
       }
-    } catch (error) {
-      console.log("Error loading user from localStorage:", error);
-      localStorage.removeItem("user");
-    } finally {
-      setIsLoading(false);
     }
+
+    loadUserSession();
   }, []);
 
+  // Gestionar redirecciones basadas en autenticación
   useEffect(() => {
-    if (!isLoading) {
-      const isPublicPath = PUBLIC_PATHS.includes(pathname!);
+    // No hacer nada mientras estamos cargando
+    if (isLoading) return;
 
-      if (!user && !isPublicPath) {
-        router.push("/login");
-      } else if (user && isPublicPath) {
-        router.push("/dashboard");
-      }
+    // Si no hay usuario y no estamos en una ruta pública, redirigir al login
+    if (!user && PUBLIC_PATHS!.includes(pathname!)) {
+      router.push(APP_ROUTES.AUTH.LOGIN);
     }
-  }, [isLoading, user, pathname, router]);
+
+    // Si hay usuario y estamos en login/registro, redirigir al dashboard
+    if (
+      user &&
+      (pathname === APP_ROUTES.AUTH.LOGIN ||
+        pathname === APP_ROUTES.AUTH.SIGNUP)
+    ) {
+      router.push(APP_ROUTES.DASHBOARD.ROOT);
+    }
+  }, [user, isLoading, pathname, router]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
 
     try {
+      // En producción, esto sería una llamada a tu API
+      // const response = await fetch("/api/auth/login", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ email, password }),
+      // });
+
+      // if (!response.ok) {
+      //   throw new Error("Login failed");
+      // }
+
+      // const userData = await response.json();
       // TODO: Implement login logic here backend
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -75,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(mockUser);
       localStorage.setItem("user", JSON.stringify(mockUser));
 
-      router.push("/dashboard");
+      router.push(APP_ROUTES.DASHBOARD.ROOT);
     } catch (error) {
       console.error("Error during login:", error);
       throw error;
@@ -103,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem("user");
     setUser(null);
-    router.push("/login");
+    router.push(APP_ROUTES.AUTH.LOGIN);
   };
 
   return (

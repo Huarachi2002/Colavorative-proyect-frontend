@@ -43,16 +43,13 @@ export default function DashboardPage() {
       // TODO En producción: DELETE /api/projects/{projectId}
       const projects = JSON.parse(localStorage.getItem("projects") || "[]");
 
-      console.log("projects", projects);
-      console.log("project", project);
       const updatedProjects = projects.filter(
         (p: Project) => p.id !== project?.id
       );
-      console.log("updatedProjects", updatedProjects);
+
       localStorage.setItem("projects", JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
-      // En producción, también enviaríamos una solicitud para eliminar la sala en Liveblocks
-      // TODO DELETE /api/liveblocks/rooms/project-{projectId}
+
       setIsDeleteModalOpen(false);
 
       // No es necesario un return explícito, pero puedes añadirlo para mayor claridad
@@ -143,7 +140,7 @@ export default function DashboardPage() {
                 <span className='text-xs text-green-600'>¡Copiado!</span>
               ) : (
                 <CopyCheckIcon
-                  className='h-4 w-4 cursor-pointer text-gray-500 transition-colors duration-200 ease-in-out hover:text-primary-blue'
+                  className='hover:text-primary-blue h-4 w-4 cursor-pointer text-gray-500 transition-colors duration-200 ease-in-out'
                   onClick={() => {
                     navigator.clipboard.writeText(project.code).then(() => {
                       setCopiedProjects((prev) => ({
@@ -180,10 +177,10 @@ export default function DashboardPage() {
                 Eliminar
               </Button>
               <Link
-                className='mt-4 flex items-center text-sm text-primary-blue opacity-0 transition-opacity group-hover:opacity-100'
+                className='text-primary-blue mt-4 flex items-center text-sm opacity-0 transition-opacity group-hover:opacity-100'
                 href={APP_ROUTES.DASHBOARD.PROJECT.ROOT(project.id)}
               >
-                <span>Abrir proyecto</span>
+                <span>Unirte</span>
                 <ArrowRightCircle className='ml-1 h-4 w-4' />
               </Link>
             </div>
@@ -200,14 +197,14 @@ export default function DashboardPage() {
         <div className='mt-3 flex space-x-3'>
           <Link
             href={APP_ROUTES.DASHBOARD.JOIN_PROJECT}
-            className='inline-flex items-center rounded-md border border-primary-blue px-4 py-2 text-sm font-medium text-primary-blue shadow-sm hover:bg-blue-50'
+            className='border-primary-blue text-primary-blue inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium shadow-sm hover:bg-blue-50'
           >
             <ArrowRightCircle className='mr-2 h-4 w-4' />
             Unirse con código
           </Link>
           <Link
             href={APP_ROUTES.DASHBOARD.CREATE_PROJECT}
-            className='inline-flex items-center rounded-md border border-transparent bg-primary-blue px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700'
+            className='bg-primary-blue inline-flex items-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700'
           >
             <Plus className='mr-2 h-4 w-4' />
             Crear Proyecto
