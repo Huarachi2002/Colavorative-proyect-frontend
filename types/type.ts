@@ -69,6 +69,17 @@ export interface CustomFabricObject<T extends fabric.Object>
   objectId?: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  description: string;
+  maxMembers: number;
+  collaborators: string[];
+  code: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export type ModifyShape = {
   canvas: fabric.Canvas;
   property: string;

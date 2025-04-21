@@ -8,10 +8,12 @@ import styles from "./index.module.css";
 
 import { generateRandomName } from "@/lib/utils";
 import { Avatar } from "./Avatar";
+import { useAuth } from "../providers/AuthProvider";
 
 const ActiveUsers = () => {
   const users = useOthers();
   const currentUser = useSelf();
+  const { user } = useAuth();
 
   const hasMoreUsers = users.length > 3;
 
@@ -23,11 +25,11 @@ const ActiveUsers = () => {
             <Avatar name='Yo' otherStyles='border-[3px] border-primary-green' />
           )}
 
-          {users.slice(0, 3).map(({ connectionId, info }) => {
+          {users.slice(0, 3).map(({ connectionId }) => {
             return (
               <Avatar
                 key={connectionId}
-                name={info.avatar} //TODO: use a better name
+                name={user!.name} //TODO user name
                 otherStyles='-ml-3'
               />
             );

@@ -1,33 +1,73 @@
 "use client";
 
+import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardContent,
+  CardFooter,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { APP_ROUTES } from "@/lib/routes";
+import { Project } from "@/types/type";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import { generateProjectCode } from "@/lib/utils";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-export default function CreateProjectPage() {
+export default function EditProjectPage() {
   const router = useRouter();
+  const params = useParams();
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [project, setProject] = useState<Project | null>(null);
+
+  // Formulario
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [maxMembers, setMaxMembers] = useState(5);
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
+
+  const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
+
+  useEffect(() => {
+    const fetchProject = () => {
+      try {
+        //TODO: En producción: GET /api/projects/{projectId}
+        const projects = JSON.parse(localStorage.getItem("projects") || "[]");
+        console.log("projects", projects);
+        // Buscar el proyecto por ID
+        console.log("projectId", projectId);
+        const projectFound = projects.find((p: Project) => p.id === projectId);
+        console.log("projectFound", projectFound);
+        if (projectFound) {
+          setProject(projectFound);
+          setTitle(projectFound.title);
+          setDescription(projectFound.description);
+          setMaxMembers(projectFound.maxMembers);
+          setCollaborators([...projectFound.collaborators]);
+        } else {
+          setError("Project not found");
+        }
+      } catch (error) {
+        console.error("Error al cargar el proyecto:", error);
+        setError("Error loading project");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProject();
+  }, [projectId]);
+
+  const isCreator = () => {
+    console.log("isCreator", project?.createdBy, user?.email);
+    return project?.createdBy === user?.email;
+  };
 
   const handleAddCollaborator = () => {
     if (!emailInput) return;
@@ -37,13 +77,21 @@ export default function CreateProjectPage() {
       return;
     }
 
+    // Validar límite de miembros
     if (collaborators.length >= maxMembers - 1) {
       setError(`Solo puedes invitar a ${maxMembers - 1} colaboradores`);
       return;
     }
 
+    // Verificar que no esté repetido
     if (collaborators.includes(emailInput)) {
-      setError("Este email ya ha sido invitado");
+      setError("Este colaborador ya fue agregado");
+      return;
+    }
+
+    // Verificar que no sea el creador
+    if (emailInput === project?.createdBy) {
+      setError("No puedes añadirte a ti mismo como colaborador");
       return;
     }
 
@@ -56,52 +104,68 @@ export default function CreateProjectPage() {
     setCollaborators(collaborators.filter((c) => c !== email));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+
+    if (!isCreator()) {
+      setError("Solo el creador puede editar este proyecto");
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
-      const projectCode = generateProjectCode();
-
-      const dateTime = new Date();
-
-      const projectData = {
-        id: Math.random().toString(36).substring(2, 8),
+      const updatedProject = {
+        ...project!,
         title,
         description,
         maxMembers,
         collaborators,
-        code: projectCode,
-        createdBy: user?.email || "anonymous@example.com",
-        createdAt: dateTime.toString(),
       };
 
-      console.log("Datos para enviar al backend:", projectData);
-
-      // Por ahora, guardar en localStorage para simular persistencia
-      const existingProjects = JSON.parse(
-        localStorage.getItem("projects") || "[]"
-      );
-      localStorage.setItem(
-        "projects",
-        JSON.stringify([...existingProjects, projectData])
+      //TODO: En producción: PUT /api/projects/{projectId}
+      const projects = JSON.parse(localStorage.getItem("projects") || "[]");
+      const updatedProjects = projects.map((p: Project) =>
+        p.id === projectId ? updatedProject : p
       );
 
-      // TODO: Implement the API call POST to create a new project
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      localStorage.setItem("projects", JSON.stringify(updatedProjects));
 
-      router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectData.id));
+      // Mostrar mensaje de éxito brevemente antes de redirigir
+      setTimeout(() => {
+        router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(project!.id));
+      }, 500);
     } catch (error) {
-      console.error("Error creating project:", error);
+      console.error("Error al actualizar proyecto:", error);
+      setError("Error al guardar los cambios");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  if (!isCreator()) {
+    return (
+      <div className='flex h-full items-center justify-center pt-6'>
+        <div className='text-center'>
+          <h2 className='text-xl font-medium text-gray-900'>Acceso denegado</h2>
+          <p className='mt-2 text-gray-600'>
+            Solo el creador puede editar este proyecto
+          </p>
+          <Button
+            onClick={() => router.back()}
+            className='w-full bg-blue-300 text-white hover:bg-blue-400'
+          >
+            Volver
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='mx-auto max-w-2xl pt-10'>
       <div className='mb-8'>
-        <h1 className='text-2xl font-bold'>Crear nuevo proyecto</h1>
+        <h1 className='text-2xl font-bold'>Editar proyecto</h1>
       </div>
 
       <Card>
@@ -219,6 +283,42 @@ export default function CreateProjectPage() {
             </div>
           )}
 
+          {/* Información de código */}
+          <div className='rounded-md bg-blue-50 p-4'>
+            <div className='flex'>
+              <div className='flex-shrink-0'>
+                <svg
+                  className='h-5 w-5 text-blue-400'
+                  xmlns='http://www.w3.org/2000/svg'
+                  viewBox='0 0 20 20'
+                  fill='currentColor'
+                  aria-hidden='true'
+                >
+                  <path
+                    fillRule='evenodd'
+                    d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z'
+                    clipRule='evenodd'
+                  />
+                </svg>
+              </div>
+              <div className='ml-3 flex-1'>
+                <h3 className='text-sm font-medium text-blue-800'>
+                  Código de invitación
+                </h3>
+                <p className='mt-2 text-sm text-blue-700'>
+                  El código de este proyecto es:{" "}
+                  <span className='font-mono font-bold tracking-widest'>
+                    {project!.code}
+                  </span>
+                </p>
+                <p className='mt-1 text-sm text-blue-700'>
+                  Comparte este código con cualquier persona que desees invitar
+                  al proyecto.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <CardFooter className='flex justify-between'>
             <Button
               type='button'
@@ -237,10 +337,10 @@ export default function CreateProjectPage() {
               {isLoading ? (
                 <>
                   <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  Creando...
+                  Actualizando...
                 </>
               ) : (
-                "Crear proyecto"
+                "Actualizar proyecto"
               )}
             </Button>
           </CardFooter>

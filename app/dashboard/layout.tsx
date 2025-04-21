@@ -228,7 +228,7 @@ export default function DashboardLayout({
           isSiderbarOpen ? "md:pl-64" : "md:pl-20"
         )}
       >
-        <div className='mt-3 h-full w-full'>
+        <div className='h-full w-full'>
           <div className='mx-auto max-w-full'>{children}</div>
         </div>
       </main>

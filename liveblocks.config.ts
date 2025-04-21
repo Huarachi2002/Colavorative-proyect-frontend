@@ -22,7 +22,14 @@ export type Presence = {
 type Storage = {
   canvasObjects: LiveMap<string, any>;
 };
-type UserMeta = {};
+type UserMeta = {
+  id: string;
+  info: {
+    name: string;
+    email: string;
+    avatar: string;
+  };
+};
 type RoomEvent = ReactionEvent;
 export type ThreadMetadata = {
   resolved: boolean;
