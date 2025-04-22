@@ -7,7 +7,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type User = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   avatar?: string;

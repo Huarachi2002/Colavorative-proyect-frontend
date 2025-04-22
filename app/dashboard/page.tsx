@@ -3,6 +3,7 @@
 import DeleteProjectModal from "@/components/projects/DeleteProjectModal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
+import { usersApi } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/routes";
 import { Project } from "@/types/type";
 import {
@@ -61,26 +62,33 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    const fetchProjects = () => {
+    const fetchProjects = async () => {
       try {
         // TODO: Aquí se realizaría una llamada a la API para obtener los proyectos
         // GET: /api/projects
+        const response = await usersApi.getRoomsbyUserId(user!.id);
+
+        console.log("Response:", response);
+        if (response.error) {
+          console.error("Error al cargar proyectos:", response.error.message);
+          return;
+        }
+
+        const projects = response.data.data.rooms;
+        console.log("Proyectos:", projects);
+        setProjects(projects);
+
         // GET: /api/projects/invited
 
-        const allProjects = JSON.parse(
-          localStorage.getItem("projects") || "[]"
-        );
+        // const userProjects = allProjects.filter(
+        //   (p: Project) => p.createdBy === user?.email
+        // );
 
-        const userProjects = allProjects.filter(
-          (p: Project) => p.createdBy === user?.email
-        );
+        // const projectsInvited = allProjects.filter((p: Project) =>
+        //   p.createdBy.includes(user?.email || "")
+        // );
 
-        const projectsInvited = allProjects.filter((p: Project) =>
-          p.collaborators.includes(user?.email || "")
-        );
-
-        setProjects(userProjects);
-        setInvitedProjects(projectsInvited);
+        // setInvitedProjects(projectsInvited);
       } catch (error) {
         console.error("Error al cargar proyectos:", error);
       } finally {
@@ -112,12 +120,11 @@ export default function DashboardPage() {
       <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
         {projectsList.map((project) => (
           <div
-            // href={APP_ROUTES.DASHBOARD.PROJECT.ROOT(project.id)}
             key={project.id}
             className='group rounded-lg border border-gray-200 bg-white p-6 transition-all hover:shadow-md'
           >
             <h2 className='text-lg font-medium text-gray-900'>
-              {project.title}
+              {project.name}
             </h2>
             {project.description && (
               <p className='mt-1 line-clamp-2 text-sm text-gray-600'>
@@ -130,8 +137,8 @@ export default function DashboardPage() {
             </div>
             <div className='mt-2 flex items-center text-sm text-gray-500'>
               <User className='mr-1 h-4 w-4' />
-              {project.collaborators.length + 1} de {project.maxMembers}{" "}
-              miembros
+              {/* {project.collaborators.length + 1} de {project.maxMembers}{" "} */}
+              {2} de {project.maxMembers} miembros
             </div>
             <div className='mt-2 flex justify-items-start gap-2 text-sm text-gray-500'>
               Código:{" "}
@@ -140,7 +147,7 @@ export default function DashboardPage() {
                 <span className='text-xs text-green-600'>¡Copiado!</span>
               ) : (
                 <CopyCheckIcon
-                  className='hover:text-primary-blue h-4 w-4 cursor-pointer text-gray-500 transition-colors duration-200 ease-in-out'
+                  className='h-4 w-4 cursor-pointer text-gray-500 transition-colors duration-200 ease-in-out hover:text-primary-blue'
                   onClick={() => {
                     navigator.clipboard.writeText(project.code).then(() => {
                       setCopiedProjects((prev) => ({
@@ -177,7 +184,7 @@ export default function DashboardPage() {
                 Eliminar
               </Button>
               <Link
-                className='text-primary-blue mt-4 flex items-center text-sm opacity-0 transition-opacity group-hover:opacity-100'
+                className='mt-4 flex items-center text-sm text-primary-blue opacity-0 transition-opacity group-hover:opacity-100'
                 href={APP_ROUTES.DASHBOARD.PROJECT.ROOT(project.id)}
               >
                 <span>Unirte</span>
@@ -197,14 +204,14 @@ export default function DashboardPage() {
         <div className='mt-3 flex space-x-3'>
           <Link
             href={APP_ROUTES.DASHBOARD.JOIN_PROJECT}
-            className='border-primary-blue text-primary-blue inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium shadow-sm hover:bg-blue-50'
+            className='inline-flex items-center rounded-md border border-primary-blue px-4 py-2 text-sm font-medium text-primary-blue shadow-sm hover:bg-blue-50'
           >
             <ArrowRightCircle className='mr-2 h-4 w-4' />
             Unirse con código
           </Link>
           <Link
             href={APP_ROUTES.DASHBOARD.CREATE_PROJECT}
-            className='bg-primary-blue inline-flex items-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700'
+            className='inline-flex items-center rounded-md border border-transparent bg-primary-blue px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700'
           >
             <Plus className='mr-2 h-4 w-4' />
             Crear Proyecto

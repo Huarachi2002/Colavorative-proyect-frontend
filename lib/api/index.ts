@@ -14,21 +14,34 @@ type ApiResponse<T> =
       };
     };
 
+const isBrowser = typeof window !== "undefined";
+
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const headers = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
+
+    if (isBrowser) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        headers["auth-token"] = token;
+      }
+    }
 
     const url = `${API_BASE_URL}${endpoint}`;
 
     console.log(`🚀 Request to ${url}`, {
       method: options.method || "GET",
       body: options.body ? JSON.parse(options.body as string) : undefined,
+      headers: {
+        ...headers,
+        "auth-token": headers["auth-token"] ? "PRESENTE" : "NO PRESENTE",
+      }, // No logueamos el token completo por seguridad
     });
 
     const response = await fetch(url, {
@@ -101,8 +114,17 @@ export const projectsApi = {
 
   getById: (id: string) => fetchApi(`/room/${id}`),
 
-  create: (data: { name: string; description: string }) =>
-    fetchApi("/room", {
+  create: (
+    id: string,
+    data: {
+      idRoom: string;
+      name: string;
+      description: string;
+      maxMembers: number;
+      createdBy: string;
+    }
+  ) =>
+    fetchApi(`/room/${id}`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -130,12 +152,24 @@ export const projectsApi = {
     }),
 };
 
+export const usersRoomsApi = {
+  sendInvitation: (data: { code: string; name: string; emails: string[] }) =>
+    fetchApi(`/user-room/invitation`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
 export const usersApi = {
-  getCurrent: () => fetchApi("/users/me"),
+  getCurrent: () => fetchApi("/user/me"),
 
   updateProfile: (data: Partial<{ name: string; email: string }>) =>
-    fetchApi("/users/me", {
+    fetchApi("/user/me", {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+  getRoomsbyUserId: (userId: string) =>
+    fetchApi(`/user/${userId}/rooms`, {
+      method: "GET",
     }),
 };

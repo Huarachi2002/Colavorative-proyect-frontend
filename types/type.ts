@@ -71,10 +71,9 @@ export interface CustomFabricObject<T extends fabric.Object>
 
 export interface Project {
   id: string;
-  title: string;
+  name: string;
   description: string;
   maxMembers: number;
-  collaborators: string[];
   code: string;
   createdBy: string;
   createdAt: string;

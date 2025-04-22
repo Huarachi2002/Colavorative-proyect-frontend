@@ -12,17 +12,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { APP_ROUTES } from "@/lib/routes";
-import { Loader2 } from "lucide-react";
+import { Loader2, SendIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { generateProjectCode } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { projectsApi, usersRoomsApi } from "@/lib/api";
 
 export default function CreateProjectPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [title, setTitle] = useState("");
+  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [maxMembers, setMaxMembers] = useState(5);
   const [collaborators, setCollaborators] = useState<string[]>([]);
@@ -61,36 +61,45 @@ export default function CreateProjectPage() {
     setIsLoading(true);
 
     try {
-      const projectCode = generateProjectCode();
-
-      const dateTime = new Date();
-
       const projectData = {
-        id: Math.random().toString(36).substring(2, 8),
-        title,
+        idRoom: Math.random().toString(36).substring(2, 8),
+        name,
         description,
         maxMembers,
-        collaborators,
-        code: projectCode,
+        // collaborators,
         createdBy: user?.email || "anonymous@example.com",
-        createdAt: dateTime.toString(),
       };
 
       console.log("Datos para enviar al backend:", projectData);
 
+      var response = await projectsApi.create(user!.id, projectData);
+      console.log("Response Project", response);
+
+      response = await usersRoomsApi.sendInvitation({
+        code: response.data.data.code,
+        name: response.data.data.name,
+        emails: collaborators,
+      });
+
+      console.log("Response Invitacion", response);
+
+      if (response.error) {
+        setError("Error al enviar invitaciones: " + response.error.message);
+        return;
+      }
       // Por ahora, guardar en localStorage para simular persistencia
-      const existingProjects = JSON.parse(
-        localStorage.getItem("projects") || "[]"
-      );
-      localStorage.setItem(
-        "projects",
-        JSON.stringify([...existingProjects, projectData])
-      );
+      // const existingProjects = JSON.parse(
+      //   localStorage.getItem("projects") || "[]"
+      // );
+      // localStorage.setItem(
+      //   "projects",
+      //   JSON.stringify([...existingProjects, projectData])
+      // );
 
       // TODO: Implement the API call POST to create a new project
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectData.id));
+      router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectData.idRoom));
     } catch (error) {
       console.error("Error creating project:", error);
     } finally {
@@ -118,8 +127,8 @@ export default function CreateProjectPage() {
                 name='name'
                 placeholder='Nombre del proyecto'
                 type='text'
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
                 minLength={3}
                 maxLength={50}
@@ -193,6 +202,7 @@ export default function CreateProjectPage() {
                     className='flex items-center justify-between rounded-md bg-gray-50 px-3 py-2'
                   >
                     <span className='text-sm text-gray-800'>{email}</span>
+
                     <Button
                       type='button'
                       onClick={() => handleRemoveCollaborator(email)}
