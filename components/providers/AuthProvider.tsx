@@ -4,6 +4,7 @@ import { authApi } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/routes";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type User = {
   id: number;
@@ -86,36 +87,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
 
     try {
-      // En producción, esto sería una llamada a tu API
-      // const response = await fetch("/api/auth/login", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ email, password }),
-      // });
+      const response = await authApi.login(email, password);
 
-      // if (!response.ok) {
-      //   throw new Error("Login failed");
-      // }
-
-      // const userData = await response.json();
-      // TODO: Implement login logic here backend
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      if (password.length < 6) {
-        throw new Error("Credenciales incorrectas");
+      console.log("Response:", response);
+      if (response.error) {
+        throw new Error(response.error.message);
       }
 
-      const mockUser = {
-        id: 1, //TODO: Mock user ID, replace with actual ID from backend
-        name: email.split("@")[0],
-        email,
-        avatar: `https://ui-avatars.com/api/?name=${email.split("@")[0]}&background=random`,
+      const userData = response.data.data.user;
+
+      const user = {
+        id: userData.id,
+        name: userData.name || userData.username,
+        email: userData.email,
+        avatar:
+          userData.avatar ||
+          `https://ui-avatars.com/api/?name=${userData.name || userData.email.split("@")[0]}&background=random`,
       };
 
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
-
-      router.push(APP_ROUTES.DASHBOARD.ROOT);
+      setUser(user);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", response.data.data.token);
     } catch (error) {
       console.error("Error during login:", error);
       throw error;
@@ -134,6 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Response:", response);
 
       if (response.error) {
+        toast.error(
+          `Ocurrio un error al registrar el usuario: ${response.error.message}`
+        );
         throw new Error(response.error.message);
       }
 

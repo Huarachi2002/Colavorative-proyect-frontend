@@ -5,6 +5,7 @@ import "./globals.css";
 import Room from "./Room";
 import { Metadata } from "next";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "IUXC",
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang='en'>
       <body className={`${workSans.className} bg-primary-grey-200`}>
         <AuthProvider>{children}</AuthProvider>
+        <Toaster position='top-center' richColors />
       </body>
     </html>
   );

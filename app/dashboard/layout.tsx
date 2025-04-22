@@ -33,12 +33,6 @@ const navigationItems: NavItem[] = [
     description: "Ver todos tus proyectos",
   },
   {
-    name: "Crear Proyecto",
-    href: APP_ROUTES.DASHBOARD.CREATE_PROJECT,
-    icon: Plus,
-    description: "Iniciar un nuevo proyecto colaborativo",
-  },
-  {
     name: "Perfil",
     href: APP_ROUTES.DASHBOARD.PROFILE,
     icon: User,
