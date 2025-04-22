@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
+import { APP_ROUTES } from "@/lib/routes";
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string) => void;
@@ -114,7 +115,10 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
 
       <div className='text-center text-sm'>
         No tienes una cuenta?{" "}
-        <Link href='/signup' className='text-primary-blue hover:underline'>
+        <Link
+          href={APP_ROUTES.AUTH.SIGNUP}
+          className='text-primary-blue hover:underline'
+        >
           Registrate
         </Link>
       </div>

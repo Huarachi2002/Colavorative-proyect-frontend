@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
 interface SignupFormProps {
-  onSubmit: (email: string, password: string) => void;
+  onSubmit: (email: string, password: string, name: string) => void;
   isLoading: boolean;
 }
 
@@ -69,14 +69,14 @@ export function SignupForm({ onSubmit, isLoading }: SignupFormProps) {
     e.preventDefault();
 
     if (validateForm()) {
-      onSubmit(email, password);
+      onSubmit(email, password, name);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className='space-y-4'>
       <div className='space-y-2'>
-        <label htmlFor='name'>Nombre completo</label>
+        <label htmlFor='name'>Nombre de Usuario</label>
         <Input
           id='name'
           type='text'

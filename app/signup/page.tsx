@@ -1,19 +1,31 @@
 "use client";
 
 import { SignupForm } from "@/components/auth/SignupForm";
+import { authApi } from "@/lib/api";
+import { APP_ROUTES } from "@/lib/routes";
 import Image from "next/image";
 import { useState } from "react";
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSignup = async (email: string, password: string) => {
+  const handleSignup = async (
+    email: string,
+    password: string,
+    name: string
+  ) => {
     setIsLoading(true);
     try {
       // TODO: Implement signup logic here backend
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await authApi.signup(name, email, password);
+      console.log("Response:", response);
 
-      window.location.href = "/login?registered=true";
+      if (response.error) {
+        throw new Error(response.error.message);
+        return;
+      }
+
+      window.location.href = APP_ROUTES.AUTH.LOGIN; // Redirigir a la página de inicio de sesión después del registro exitoso
     } catch (error) {
       console.error("Error al registrarse:", error);
     } finally {
@@ -24,7 +36,7 @@ export default function SignUpPage() {
   return (
     <div className='flex min-h-screen w-full'>
       {/* Columna Izquierda - Formulario */}
-      <div className='flex w-full flex-col items-center justify-center bg-primary-grey-500 px-4 sm:px-8 md:w-1/2 lg:px-12'>
+      <div className='bg-primary-grey-500 flex w-full flex-col items-center justify-center px-4 sm:px-8 md:w-1/2 lg:px-12'>
         <div className='w-full max-w-md space-y-6'>
           <div className='space-y-2 text-center'>
             <h1 className='text-3xl font-bold tracking-tight'>Crear cuenta</h1>
@@ -38,7 +50,7 @@ export default function SignUpPage() {
       </div>
 
       {/* Columna Derecha - Banner Visual */}
-      <div className='hidden bg-primary-blue md:block md:w-1/2'>
+      <div className='bg-primary-blue hidden md:block md:w-1/2'>
         <div className='relative flex h-full w-full items-center justify-center overflow-hidden'>
           <div className='absolute inset-0 z-10 bg-black/20'>
             <Image

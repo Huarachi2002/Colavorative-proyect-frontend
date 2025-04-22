@@ -1,6 +1,5 @@
-import { create } from "domain";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
 type ApiResponse<T> =
   | {
@@ -25,19 +24,43 @@ async function fetchApi<T>(
       ...options.headers,
     };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+
+    console.log(`🚀 Request to ${url}`, {
+      method: options.method || "GET",
+      body: options.body ? JSON.parse(options.body as string) : undefined,
+    });
+
+    const response = await fetch(url, {
       ...options,
       headers,
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get("content-type");
+    const isJson = contentType && contentType.includes("application/json");
+
+    let data;
+    if (isJson) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.warn("Response is not JSON:", text);
+      data = { message: text };
+    }
+
+    console.log(`📥 Response from ${url}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      data,
+    });
 
     if (!response.ok) {
       return {
         data: null,
         error: {
-          message: data.message || "Ocurrió un error inesperado",
-          code: data.code,
+          message:
+            data.message || `Error: ${response.status} ${response.statusText}`,
+          code: data.statusCode || response.status.toString(),
         },
       };
     }
@@ -66,15 +89,10 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
 
-  signup: (name: string, email: string, password: string) =>
-    fetchApi("/auth/signup", {
+  signup: (username: string, email: string, password: string) =>
+    fetchApi("/auth/sign-up", {
       method: "POST",
-      body: JSON.stringify({ name, email, password }),
-    }),
-
-  logout: () =>
-    fetchApi("/auth/logout", {
-      method: "POST",
+      body: JSON.stringify({ username, email, password }),
     }),
 };
 

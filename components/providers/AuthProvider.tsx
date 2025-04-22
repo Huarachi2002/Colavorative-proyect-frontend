@@ -1,5 +1,6 @@
 "use client";
 
+import { authApi } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/routes";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Usuario existente en localStorage
           setUser(JSON.parse(storedUser));
         } else {
-          // En producción, esto sería una llamada a tu API
+          // TODO: En producción, esto sería una llamada a tu API
           // const response = await fetch("/api/auth/me");
           // if (response.ok) {
           //   const userData = await response.json();
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
 
     // Si no hay usuario y no estamos en una ruta pública, redirigir al login
-    if (!user && PUBLIC_PATHS!.includes(pathname!)) {
+    if (!user && !PUBLIC_PATHS.includes(pathname!)) {
       router.push(APP_ROUTES.AUTH.LOGIN);
     }
 
@@ -128,9 +129,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       //TODO: Implement signup logic here backend
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await authApi.signup(name, email, password);
 
-      router.push("/login?registered=true");
+      console.log("Response:", response);
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      router.push(PUBLIC_PATHS[0]);
     } catch (error) {
       console.error("Error during signup:", error);
       throw error;
