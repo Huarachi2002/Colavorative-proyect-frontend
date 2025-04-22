@@ -97,35 +97,35 @@ export const authApi = {
 };
 
 export const projectsApi = {
-  getAll: () => fetchApi("/projects"),
+  getAll: () => fetchApi("/room"),
 
-  getById: (id: string) => fetchApi(`/projects/${id}`),
+  getById: (id: string) => fetchApi(`/room/${id}`),
 
   create: (data: { name: string; description: string }) =>
-    fetchApi("/projects", {
+    fetchApi("/room", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   update: (id: string, data: { name?: string; description?: string }) =>
-    fetchApi(`/projects/${id}`, {
+    fetchApi(`/room/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
   delete: (id: string) =>
-    fetchApi(`/projects/${id}`, {
+    fetchApi(`/room/${id}`, {
       method: "DELETE",
     }),
 
   addCollaborator: (id: string, email: string) =>
-    fetchApi(`/projects/${id}/collaborators`, {
+    fetchApi(`/room/${id}/collaborators`, {
       method: "POST",
       body: JSON.stringify({ email }),
     }),
 
   removeCollaborator: (projectId: string, userId: string) =>
-    fetchApi(`/projects/${projectId}/collaborators/${userId}`, {
+    fetchApi(`/room/${projectId}/collaborators/${userId}`, {
       method: "DELETE",
     }),
 };
