@@ -26,6 +26,7 @@ export default function LoginPage() {
       const response = await login(email, password);
       console.log("Response:", response);
 
+      toast.success("Inicio de sesión exitoso!");
       // route.push(APP_ROUTES.DASHBOARD.ROOT);
     } catch (error) {
       toast.error("Error al iniciar sesión. Verifica tus credenciales.");

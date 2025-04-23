@@ -1,8 +1,10 @@
 "use client";
 
+import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { projectsApi, usersRoomsApi } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/routes";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -12,6 +14,7 @@ export default function JoinProjectPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,22 +32,30 @@ export default function JoinProjectPage() {
 
       //TODO: Aquí se realizaría una llamada a la API para verificar el código
       // GET: /api/projects/validate-code/{code}
+      const response = await projectsApi.validateCode(normalizedCode);
 
-      // Simulación con localStorage
-      const projects = JSON.parse(localStorage.getItem("projects") || "[]");
-      const projectFound = projects.find(
-        (project: any) => project.code === normalizedCode
-      );
-
-      console.log("Project found:", projectFound);
-
-      if (!projectFound) {
+      console.log("Response:", response);
+      if (response.error) {
         setError("El código del proyecto no es válido.");
         setIsLoading(false);
         return;
       }
 
-      router.push(`${APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectFound.id)}`);
+      const idRoom = response.data.data.room.id;
+      const idUser = user!.id;
+      console.log("ID Room:", idRoom);
+      console.log("ID User:", idUser);
+      const responseJoin = await usersRoomsApi.joinProject({ idRoom, idUser });
+      console.log("Response Join:", responseJoin);
+      if (responseJoin.error) {
+        setError(responseJoin.error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      router.push(
+        `${APP_ROUTES.DASHBOARD.PROJECT.ROOT(response.data.data.room.idRoom)}`
+      );
     } catch (error) {
       console.error("Error al unirse al proyecto:", error);
       setError("Ocurrió un error al unirse al proyecto. Inténtalo de nuevo.");

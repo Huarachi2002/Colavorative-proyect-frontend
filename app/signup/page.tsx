@@ -24,6 +24,7 @@ export default function SignUpPage() {
       // TODO: Implement signup logic here backend
       const response = await signup(name, email, password);
       console.log("Response:", response);
+      toast.success("Registro exitoso!");
     } catch (error) {
       console.error("Error al registrarse:", error);
     } finally {

@@ -12,10 +12,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { APP_ROUTES } from "@/lib/routes";
-import { Project } from "@/types/type";
+import { Project, User } from "@/types/type";
 import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { projectsApi } from "@/lib/api";
+import email from "next-auth/providers/email";
+import { toast } from "sonner";
 
 export default function EditProjectPage() {
   const router = useRouter();
@@ -23,37 +26,60 @@ export default function EditProjectPage() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<Project>({
+    id: 0,
+    idRoom: "",
+    name: "",
+    description: "",
+    code: "",
+    createdAt: "",
+    activeUserCount: 0,
+    maxMembers: 0,
+    createdBy: "",
+  });
 
   // Formulario
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [maxMembers, setMaxMembers] = useState(5);
-  const [collaborators, setCollaborators] = useState<string[]>([]);
+  const [collaboratorsEmails, setCollaboratorsEmails] = useState<string[]>([]);
+  const [collaborators, setCollaborators] = useState<User[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
 
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
   useEffect(() => {
-    const fetchProject = () => {
+    const fetchProject = async () => {
       try {
         //TODO: En producción: GET /api/projects/{projectId}
-        const projects = JSON.parse(localStorage.getItem("projects") || "[]");
-        console.log("projects", projects);
-        // Buscar el proyecto por ID
         console.log("projectId", projectId);
-        const projectFound = projects.find((p: Project) => p.id === projectId);
-        console.log("projectFound", projectFound);
-        if (projectFound) {
-          setProject(projectFound);
-          setTitle(projectFound.title);
-          setDescription(projectFound.description);
-          setMaxMembers(projectFound.maxMembers);
-          setCollaborators([...projectFound.collaborators]);
-        } else {
-          setError("Project not found");
+        const response = await projectsApi.getById(projectId);
+        console.log("project", response);
+
+        if (response.error) {
+          setError("Error al cargar la sala");
+          return;
         }
+
+        const projectFound = response.data.data.room;
+        const collaboratorEmails = projectFound.users
+          .filter((u: any) => u.status === "INVITADO")
+          .map((u: any) => u.user.email);
+        console.log("collaboratorEmails", collaboratorEmails);
+
+        const collaboratorProject = projectFound.users
+          .filter((u: any) => u.status === "INVITADO")
+          .map((u: any) => u.user);
+
+        console.log("collaboratorProject", collaboratorProject);
+
+        setProject(projectFound);
+        setTitle(projectFound.name);
+        setDescription(projectFound.description);
+        setMaxMembers(projectFound.maxMembers);
+        setCollaboratorsEmails(collaboratorEmails);
+        setCollaborators(collaboratorProject);
       } catch (error) {
         console.error("Error al cargar el proyecto:", error);
         setError("Error loading project");
@@ -78,13 +104,13 @@ export default function EditProjectPage() {
     }
 
     // Validar límite de miembros
-    if (collaborators.length >= maxMembers - 1) {
+    if (collaboratorsEmails.length >= maxMembers - 1) {
       setError(`Solo puedes invitar a ${maxMembers - 1} colaboradores`);
       return;
     }
 
     // Verificar que no esté repetido
-    if (collaborators.includes(emailInput)) {
+    if (collaboratorsEmails.includes(emailInput)) {
       setError("Este colaborador ya fue agregado");
       return;
     }
@@ -95,13 +121,30 @@ export default function EditProjectPage() {
       return;
     }
 
-    setCollaborators([...collaborators, emailInput]);
+    setCollaboratorsEmails([...collaboratorsEmails, emailInput]);
     setEmailInput("");
     setError("");
   };
 
-  const handleRemoveCollaborator = (email: string) => {
-    setCollaborators(collaborators.filter((c) => c !== email));
+  const handleRemoveCollaborator = async (id: string, email: string) => {
+    try {
+      console.log("handleRemoveCollaborator id, email", id, email);
+      const response = await projectsApi.removeCollaborator(project.id, id);
+      console.log("response", response);
+
+      if (response.error) {
+        setError("Error al eliminar el colaborador");
+        return;
+      }
+
+      toast.success(
+        `Colaborador ${email} eliminado correctamente del proyecto`
+      );
+      setCollaboratorsEmails(collaboratorsEmails.filter((c) => c !== email));
+    } catch (error) {
+      console.error("Error al eliminar colaborador:", error);
+      setError("Error al eliminar el colaborador");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,26 +158,20 @@ export default function EditProjectPage() {
     setIsSaving(true);
 
     try {
-      const updatedProject = {
-        ...project!,
-        title,
+      //TODO: En producción: PUT /api/projects/{projectId}
+      const response = await projectsApi.update(projectId, {
+        name: title,
         description,
         maxMembers,
-        collaborators,
-      };
+      });
+      console.log("response", response);
 
-      //TODO: En producción: PUT /api/projects/{projectId}
-      const projects = JSON.parse(localStorage.getItem("projects") || "[]");
-      const updatedProjects = projects.map((p: Project) =>
-        p.id === projectId ? updatedProject : p
-      );
+      if (response.error) {
+        setError("Error al actualizar el proyecto");
+        return;
+      }
 
-      localStorage.setItem("projects", JSON.stringify(updatedProjects));
-
-      // Mostrar mensaje de éxito brevemente antes de redirigir
-      setTimeout(() => {
-        router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(project!.id));
-      }, 500);
+      router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(project!.idRoom));
     } catch (error) {
       console.error("Error al actualizar proyecto:", error);
       setError("Error al guardar los cambios");
@@ -247,19 +284,21 @@ export default function EditProjectPage() {
           </CardContent>
 
           {/* Lista de colaboradores */}
-          {collaborators.length > 0 && (
+          {collaboratorsEmails.length > 0 && (
             <div className='ml-6 space-x-2'>
               <CardTitle>Colaboradores invitados:</CardTitle>
               <ul className='space-y-1'>
-                {collaborators.map((email) => (
+                {collaborators.map((user) => (
                   <li
-                    key={email}
+                    key={user.id}
                     className='flex items-center justify-between rounded-md bg-gray-50 px-3 py-2'
                   >
-                    <span className='text-sm text-gray-800'>{email}</span>
+                    <span className='text-sm text-gray-800'>{user.email}</span>
                     <Button
                       type='button'
-                      onClick={() => handleRemoveCollaborator(email)}
+                      onClick={() =>
+                        handleRemoveCollaborator(user.id, user.email)
+                      }
                       className='text-red-500 hover:text-red-700'
                     >
                       <svg

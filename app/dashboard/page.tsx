@@ -22,13 +22,14 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [project, setProject] = useState<Project>({
-    id: "",
-    title: "",
+    id: 0,
+    idRoom: "",
+    name: "",
     description: "",
     code: "",
     createdAt: "",
+    activeUserCount: 0,
     maxMembers: 0,
-    collaborators: [],
     createdBy: "",
   });
   const [invitedProjects, setInvitedProjects] = useState<Project[]>([]);
@@ -45,7 +46,7 @@ export default function DashboardPage() {
       const projects = JSON.parse(localStorage.getItem("projects") || "[]");
 
       const updatedProjects = projects.filter(
-        (p: Project) => p.id !== project?.id
+        (p: Project) => p.idRoom !== project?.idRoom
       );
 
       localStorage.setItem("projects", JSON.stringify(updatedProjects));
@@ -66,7 +67,7 @@ export default function DashboardPage() {
       try {
         // TODO: Aquí se realizaría una llamada a la API para obtener los proyectos
         // GET: /api/projects
-        const response = await usersApi.getRoomsbyUserId(user!.id);
+        const response = await usersApi.getCreateProjects(user!.id);
 
         console.log("Response:", response);
         if (response.error) {
@@ -79,16 +80,18 @@ export default function DashboardPage() {
         setProjects(projects);
 
         // GET: /api/projects/invited
+        const responseInvited = await usersApi.getInvitedProjects(user!.id);
 
-        // const userProjects = allProjects.filter(
-        //   (p: Project) => p.createdBy === user?.email
-        // );
+        console.log("Response Invited:", responseInvited);
+        if (responseInvited.error) {
+          console.error(
+            "Error al cargar proyectos invitados:",
+            responseInvited.error.message
+          );
+          return;
+        }
 
-        // const projectsInvited = allProjects.filter((p: Project) =>
-        //   p.createdBy.includes(user?.email || "")
-        // );
-
-        // setInvitedProjects(projectsInvited);
+        setInvitedProjects(responseInvited.data.data.rooms);
       } catch (error) {
         console.error("Error al cargar proyectos:", error);
       } finally {
@@ -120,7 +123,7 @@ export default function DashboardPage() {
       <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
         {projectsList.map((project) => (
           <div
-            key={project.id}
+            key={project.idRoom}
             className='group rounded-lg border border-gray-200 bg-white p-6 transition-all hover:shadow-md'
           >
             <h2 className='text-lg font-medium text-gray-900'>
@@ -138,12 +141,12 @@ export default function DashboardPage() {
             <div className='mt-2 flex items-center text-sm text-gray-500'>
               <User className='mr-1 h-4 w-4' />
               {/* {project.collaborators.length + 1} de {project.maxMembers}{" "} */}
-              {2} de {project.maxMembers} miembros
+              {project.activeUserCount} de {project.maxMembers} miembros
             </div>
             <div className='mt-2 flex justify-items-start gap-2 text-sm text-gray-500'>
               Código:{" "}
               <span className='font-mono font-medium'>{project.code}</span>
-              {copiedProjects[project.id] ? (
+              {copiedProjects[project.idRoom] ? (
                 <span className='text-xs text-green-600'>¡Copiado!</span>
               ) : (
                 <CopyCheckIcon
@@ -152,12 +155,12 @@ export default function DashboardPage() {
                     navigator.clipboard.writeText(project.code).then(() => {
                       setCopiedProjects((prev) => ({
                         ...prev,
-                        [project.id]: true,
+                        [project.idRoom]: true,
                       }));
                       setTimeout(() => {
                         setCopiedProjects((prev) => ({
                           ...prev,
-                          [project.id]: false,
+                          [project.idRoom]: false,
                         }));
                       }, 2000);
                     });
@@ -166,26 +169,33 @@ export default function DashboardPage() {
               )}
             </div>
             <div className='mt-2 flex items-center'>
-              <Link
-                href={APP_ROUTES.DASHBOARD.PROJECT.EDIT(project.id)}
-                className='mt-4 flex items-center text-sm text-yellow-400 opacity-0 transition-opacity group-hover:opacity-100'
-              >
-                <EditIcon className='mr-1 h-4 w-4' />
-                Editar
-              </Link>
-              <Button
-                onClick={() => {
-                  setIsDeleteModalOpen(true);
-                  setProject(project);
-                }}
-                className='mt-4 flex items-center text-sm text-red-400 opacity-0 transition-opacity group-hover:opacity-100'
-              >
-                <Trash2Icon className='mr-1 h-4 w-4' />
-                Eliminar
-              </Button>
+              {!isInvited && (
+                <>
+                  <Link
+                    href={APP_ROUTES.DASHBOARD.PROJECT.EDIT(
+                      project.id.toString()
+                    )}
+                    className='mt-4 flex items-center text-sm text-yellow-400 opacity-0 transition-opacity group-hover:opacity-100'
+                  >
+                    <EditIcon className='mr-1 h-4 w-4' />
+                    Editar
+                  </Link>
+                  <Button
+                    onClick={() => {
+                      setIsDeleteModalOpen(true);
+                      setProject(project);
+                    }}
+                    className='mt-4 flex items-center text-sm text-red-400 opacity-0 transition-opacity group-hover:opacity-100'
+                  >
+                    <Trash2Icon className='mr-1 h-4 w-4' />
+                    Eliminar
+                  </Button>
+                </>
+              )}
+
               <Link
                 className='mt-4 flex items-center text-sm text-primary-blue opacity-0 transition-opacity group-hover:opacity-100'
-                href={APP_ROUTES.DASHBOARD.PROJECT.ROOT(project.id)}
+                href={APP_ROUTES.DASHBOARD.PROJECT.ROOT(project.idRoom)}
               >
                 <span>Unirte</span>
                 <ArrowRightCircle className='ml-1 h-4 w-4' />
@@ -255,7 +265,7 @@ export default function DashboardPage() {
       </div>
       <DeleteProjectModal
         isOpen={isDeleteModalOpen}
-        projectTitle={project.title}
+        projectTitle={project.name}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirmDelete={handleDeleteProject}
       />

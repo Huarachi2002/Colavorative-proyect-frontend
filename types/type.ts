@@ -1,4 +1,4 @@
-import { BaseUserMeta, User } from "@liveblocks/client";
+import { BaseUserMeta } from "@liveblocks/client";
 import { Gradient, Pattern } from "fabric/fabric-impl";
 
 export enum CursorMode {
@@ -70,12 +70,21 @@ export interface CustomFabricObject<T extends fabric.Object>
 }
 
 export interface Project {
-  id: string;
+  id: number;
+  idRoom: string;
   name: string;
   description: string;
   maxMembers: number;
+  activeUserCount: number;
   code: string;
   createdBy: string;
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
   createdAt: string;
 }
 

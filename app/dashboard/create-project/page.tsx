@@ -76,8 +76,8 @@ export default function CreateProjectPage() {
       console.log("Response Project", response);
 
       response = await usersRoomsApi.sendInvitation({
-        code: response.data.data.code,
-        name: response.data.data.name,
+        code: response.data.data.room.code,
+        name: response.data.data.room.name,
         emails: collaborators,
       });
 

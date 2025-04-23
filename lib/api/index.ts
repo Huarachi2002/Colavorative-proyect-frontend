@@ -129,7 +129,10 @@ export const projectsApi = {
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: { name?: string; description?: string }) =>
+  update: (
+    id: string,
+    data: { name: string; description: string; maxMembers: number }
+  ) =>
     fetchApi(`/room/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -140,21 +143,30 @@ export const projectsApi = {
       method: "DELETE",
     }),
 
+  validateCode: (code: string) =>
+    fetchApi(`/room/validate-code/${code}`, { method: "GET" }),
+
   addCollaborator: (id: string, email: string) =>
     fetchApi(`/room/${id}/collaborators`, {
       method: "POST",
       body: JSON.stringify({ email }),
     }),
 
-  removeCollaborator: (projectId: string, userId: string) =>
+  removeCollaborator: (projectId: number, userId: string) =>
     fetchApi(`/room/${projectId}/collaborators/${userId}`, {
-      method: "DELETE",
+      method: "PUT",
     }),
 };
 
 export const usersRoomsApi = {
   sendInvitation: (data: { code: string; name: string; emails: string[] }) =>
     fetchApi(`/user-room/invitation`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  joinProject: (data: { idRoom: number; idUser: string }) =>
+    fetchApi("/user-room/join-room", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -170,6 +182,16 @@ export const usersApi = {
     }),
   getRoomsbyUserId: (userId: string) =>
     fetchApi(`/user/${userId}/rooms`, {
+      method: "GET",
+    }),
+
+  getCreateProjects: (userId: string) =>
+    fetchApi(`/user/${userId}/rooms-created`, {
+      method: "GET",
+    }),
+
+  getInvitedProjects: (userId: string) =>
+    fetchApi(`/user/${userId}/rooms-invited `, {
       method: "GET",
     }),
 };
