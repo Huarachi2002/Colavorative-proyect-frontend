@@ -83,6 +83,7 @@ async function fetchApi<T>(
       error: null,
     };
   } catch (error) {
+    console.log("Error in fetchApi:", error);
     return {
       data: null,
       error: {
@@ -175,11 +176,21 @@ export const usersRoomsApi = {
 export const usersApi = {
   getCurrent: () => fetchApi("/user/me"),
 
-  updateProfile: (data: Partial<{ name: string; email: string }>) =>
-    fetchApi("/user/me", {
+  updateProfile: (id: string, data: { name: string; email: string }) =>
+    fetchApi(`/user/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+
+  updatePassword: (
+    id: string,
+    data: { password: string; newPassword: string }
+  ) =>
+    fetchApi(`/user/password/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   getRoomsbyUserId: (userId: string) =>
     fetchApi(`/user/${userId}/rooms`, {
       method: "GET",

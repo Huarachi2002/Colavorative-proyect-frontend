@@ -10,9 +10,7 @@ import {
   ImportIcon,
   LogOut,
   Menu,
-  Plus,
   User,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -74,7 +72,7 @@ export default function DashboardLayout({
   }, []);
 
   const isActive = (path: string) => {
-    return pathname && (pathname === path || pathname.startsWith(`${path}/`));
+    return pathname === path;
   };
 
   const NavItem = ({ item }: { item: NavItem }) => {
@@ -177,42 +175,6 @@ export default function DashboardLayout({
             <ChevronRight className='h-4 w-4 text-gray-600' />
           )}
         </button>
-      </div>
-
-      {/* Barra superior mobile */}
-      <div className='md:hidden'>
-        {/* <div className='flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2'>
-          <h1 className='text-lg font-bold'>IUXC Platform</h1>
-          <button
-            type='button'
-            className='text-gray-500 hover:text-gray-600'
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? (
-              <X className='h-6 w-6' aria-hidden='true' />
-            ) : (
-              <Menu className='h-6 w-6' aria-hidden='true' />
-            )}
-          </button>
-        </div> */}
-
-        {/* Menú móvil */}
-        {/* {isMobileMenuOpen && (
-          <div className='absolute inset-x-0 top-[53px] z-10 border-b border-gray-200 bg-white shadow-lg'>
-            <div className='space-y-1 px-2 py-3'>
-              {navigationItems.map((item) => (
-                <NavItem key={item.name} item={item} />
-              ))}
-              <button
-                onClick={logout}
-                className='flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 hover:text-red-700'
-              >
-                <LogOut className='mr-3 h-5 w-5 flex-shrink-0' />
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        )} */}
       </div>
 
       {/* Contenido principal - Ajustado para tener en cuenta el ancho de la barra lateral */}

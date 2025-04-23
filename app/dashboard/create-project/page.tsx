@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { projectsApi, usersRoomsApi } from "@/lib/api";
+import { toast } from "sonner";
+import Loader from "@/components/Loader";
 
 export default function CreateProjectPage() {
   const router = useRouter();
@@ -98,7 +100,8 @@ export default function CreateProjectPage() {
 
       // TODO: Implement the API call POST to create a new project
       // await new Promise((resolve) => setTimeout(resolve, 1000));
-
+      toast.success("Sala creada y colabordadores invitados con éxito!");
+      toast.success("Espere un momento mientras se redirige...");
       router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectData.idRoom));
     } catch (error) {
       console.error("Error creating project:", error);
@@ -246,7 +249,7 @@ export default function CreateProjectPage() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  <Loader />
                   Creando...
                 </>
               ) : (

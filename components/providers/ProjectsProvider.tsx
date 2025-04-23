@@ -18,10 +18,6 @@ type ProjectsContextType = {
   loading: boolean;
   error: string | null;
   refetchProjects: () => Promise<void>;
-  createProject: (data: {
-    name: string;
-    description: string;
-  }) => Promise<Project | null>;
   deleteProject: (id: string) => Promise<boolean>;
 };
 
@@ -49,30 +45,6 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       );
     } catch (error: any) {
       setError(error.message || "Error inesperado");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createProject = async (data: {
-    name: string;
-    description: string;
-  }): Promise<Project | null> => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await projectsApi.create(data);
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const newProject = response.data as Project;
-      setProjects((prev) => [...prev, newProject]);
-      return newProject;
-    } catch (error: any) {
-      setError(error.message || "Error inesperado");
-      return null;
     } finally {
       setLoading(false);
     }
@@ -113,7 +85,6 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         refetchProjects,
-        createProject,
         deleteProject,
       }}
     >

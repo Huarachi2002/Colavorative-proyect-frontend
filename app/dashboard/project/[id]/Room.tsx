@@ -1,9 +1,9 @@
 "use client";
 
+import Loader from "@/components/Loader";
 import { RoomProvider } from "@/liveblocks.config";
 import { LiveMap } from "@liveblocks/client";
 import { ClientSideSuspense } from "@liveblocks/react";
-import { Loader } from "lucide-react";
 import { ReactNode } from "react";
 
 export default function Room({

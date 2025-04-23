@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
 import { APP_ROUTES } from "@/lib/routes";
+import Loader from "@/components/Loader";
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string) => void;
@@ -70,7 +70,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
           <Label htmlFor='password'>Contraseña</Label>
           <Link
             href='/forgot-password'
-            className='text-primary-blue text-sm hover:underline'
+            className='text-sm text-primary-blue hover:underline'
           >
             Olvidaste tu contraseña?
           </Link>
@@ -102,10 +102,14 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         </Label>
       </div>
 
-      <Button type='submit' disabled={isLoading} className='w-full'>
+      <Button
+        type='submit'
+        disabled={isLoading}
+        className='w-full bg-blue-400 text-white hover:bg-blue-500'
+      >
         {isLoading ? (
           <>
-            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            <Loader />
             Iniciando sesión...
           </>
         ) : (

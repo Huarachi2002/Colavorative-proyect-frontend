@@ -13,12 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { APP_ROUTES } from "@/lib/routes";
 import { Project, User } from "@/types/type";
-import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { projectsApi } from "@/lib/api";
-import email from "next-auth/providers/email";
 import { toast } from "sonner";
+import Loader from "@/components/Loader";
 
 export default function EditProjectPage() {
   const router = useRouter();
@@ -375,7 +374,7 @@ export default function EditProjectPage() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  <Loader />
                   Actualizando...
                 </>
               ) : (

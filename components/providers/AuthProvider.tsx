@@ -10,11 +10,11 @@ type User = {
   id: string;
   name: string;
   email: string;
-  avatar?: string;
 } | null;
 
 type AuthContextType = {
   user: User;
+  updateUser: (user: User) => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -147,8 +147,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push(APP_ROUTES.AUTH.LOGIN);
   };
 
+  const updateUser = (userData: User) => {
+    if (userData) {
+      const updateUser = { ...user, ...userData };
+      setUser(updateUser);
+      localStorage.setItem("user", JSON.stringify(updateUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{ user, login, signup, logout, isLoading, updateUser }}
+    >
       {!isLoading && children}
     </AuthContext.Provider>
   );

@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
-import { Loader2 } from "lucide-react";
+import Loader from "@/components/Loader";
 import Link from "next/link";
 
 interface SignupFormProps {
@@ -156,10 +156,14 @@ export function SignupForm({ onSubmit, isLoading }: SignupFormProps) {
         </div>
       </div>
 
-      <Button type='submit' disabled={isLoading} className='w-full'>
+      <Button
+        type='submit'
+        disabled={isLoading}
+        className='w-full bg-blue-400 text-white hover:bg-blue-500'
+      >
         {isLoading ? (
           <>
-            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            <Loader />
             Registrando...
           </>
         ) : (

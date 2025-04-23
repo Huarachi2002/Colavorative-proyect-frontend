@@ -1,5 +1,6 @@
 "use client";
 
+import Loader from "@/components/Loader";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { APP_ROUTES } from "@/lib/routes";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { toast } from "sonner";
 
 export default function JoinProjectPage() {
   const [code, setCode] = useState("");
@@ -53,6 +55,7 @@ export default function JoinProjectPage() {
         return;
       }
 
+      toast.success("Te has unido al proyecto exitosamente!");
       router.push(
         `${APP_ROUTES.DASHBOARD.PROJECT.ROOT(response.data.data.room.idRoom)}`
       );
@@ -95,7 +98,7 @@ export default function JoinProjectPage() {
           >
             {isLoading ? (
               <>
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                <Loader />
                 Verificando...
               </>
             ) : (

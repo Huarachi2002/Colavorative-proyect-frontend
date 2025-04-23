@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader } from "lucide-react";
+import Loader from "@/components/Loader";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { RoomProvider } from "../liveblocks.config";
 import { ClientSideSuspense } from "@liveblocks/react";
 import { LiveMap } from "@liveblocks/client";
-import { Loader } from "lucide-react";
+import Loader from "@/components/Loader";
 
 export default function Room({
   children,
