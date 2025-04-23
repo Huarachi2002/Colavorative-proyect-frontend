@@ -96,6 +96,90 @@ async function fetchApi<T>(
   }
 }
 
+async function fetchApiWithProgress<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  onProgress?: (progressEvent: any) => void
+): Promise<ApiResponse<T>> {
+  try {
+    const url = `${API_BASE_URL}${endpoint}`;
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open(options.method || "GET", url);
+
+      // Añadir headers
+      const headers: Record<string, string> = {
+        ...(options.headers as Record<string, string>),
+      };
+
+      if (isBrowser) {
+        const token = localStorage.getItem("token");
+        if (token) {
+          headers["auth-token"] = token;
+        }
+      }
+
+      Object.entries(headers).forEach(([key, value]) => {
+        if (value) xhr.setRequestHeader(key, value as string);
+      });
+
+      // Event listeners
+      xhr.onload = function () {
+        let responseData;
+        try {
+          responseData = JSON.parse(xhr.responseText);
+        } catch (e) {
+          responseData = { message: xhr.responseText };
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({
+            data: responseData,
+            error: null,
+          });
+        } else {
+          resolve({
+            data: null,
+            error: {
+              message: responseData.message || `Error: ${xhr.status}`,
+              code: responseData.statusCode || xhr.status.toString(),
+            },
+          });
+        }
+      };
+
+      xhr.onerror = function () {
+        resolve({
+          data: null,
+          error: {
+            message: "Error de red al realizar la solicitud",
+          },
+        });
+      };
+
+      if (onProgress) {
+        xhr.upload.onprogress = onProgress;
+      }
+
+      // Enviar
+      xhr.send(options.body as FormData);
+    });
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
+    return {
+      data: null,
+      error: {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error inesperado",
+      },
+    };
+  }
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
     fetchApi("/auth/sign-in", {
@@ -157,6 +241,35 @@ export const projectsApi = {
     fetchApi(`/room/${projectId}/collaborators/${userId}`, {
       method: "PUT",
     }),
+
+  createFromSketch: (data: {
+    name: string;
+    description: string;
+    elements: any[];
+  }) =>
+    fetchApi("/room", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+export const importApi = {
+  importFromSketch: (
+    formData: FormData,
+    onProgress?: (progressEvent: any) => void
+  ) => {
+    return fetchApiWithProgress(
+      "/import/sketch",
+      {
+        method: "POST",
+        body: formData,
+        // No incluir Content-Type para que el navegador lo establezca con el boundary correcto
+      },
+      onProgress
+    );
+  },
+
+  getImportResult: (importId: string) => fetchApi(`/import/result/${importId}`),
 };
 
 export const usersRoomsApi = {
