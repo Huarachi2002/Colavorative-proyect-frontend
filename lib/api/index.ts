@@ -254,7 +254,7 @@ export const projectsApi = {
 };
 
 export const importApi = {
-  importFromSketch: (
+  processSketch: (
     formData: FormData,
     onProgress?: (progressEvent: any) => void
   ) => {
@@ -263,13 +263,10 @@ export const importApi = {
       {
         method: "POST",
         body: formData,
-        // No incluir Content-Type para que el navegador lo establezca con el boundary correcto
       },
       onProgress
     );
   },
-
-  getImportResult: (importId: string) => fetchApi(`/import/result/${importId}`),
 };
 
 export const usersRoomsApi = {

@@ -38,7 +38,7 @@ const navigationItems: NavItem[] = [
   },
   {
     name: "Importar Proyecto",
-    href: APP_ROUTES.DASHBOARD.PROJECT.IMPORT,
+    href: APP_ROUTES.DASHBOARD.IMPORT,
     icon: ImportIcon,
     description: "Importar un proyecto existente",
   },

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -12,9 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { APP_ROUTES } from "@/lib/routes";
-import { Loader2, SendIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { projectsApi, usersRoomsApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -30,6 +28,12 @@ export default function CreateProjectPage() {
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
+  const [hasImportedObjects, setHasImportedObjects] = useState(false);
+
+  useEffect(() => {
+    const importedObjects = localStorage.getItem("importedSketchObjects");
+    setHasImportedObjects(!!importedObjects);
+  }, []);
 
   const handleAddCollaborator = () => {
     if (!emailInput) return;
@@ -68,7 +72,6 @@ export default function CreateProjectPage() {
         name,
         description,
         maxMembers,
-        // collaborators,
         createdBy: user?.email || "anonymous@example.com",
       };
 
@@ -77,29 +80,26 @@ export default function CreateProjectPage() {
       var response = await projectsApi.create(user!.id, projectData);
       console.log("Response Project", response);
 
-      response = await usersRoomsApi.sendInvitation({
-        code: response.data.data.room.code,
-        name: response.data.data.room.name,
-        emails: collaborators,
-      });
+      if (collaborators.length > 0) {
+        response = await usersRoomsApi.sendInvitation({
+          code: response.data.data.room.code,
+          name: response.data.data.room.name,
+          emails: collaborators,
+        });
 
-      console.log("Response Invitacion", response);
+        console.log("Response Invitación", response);
+
+        if (response.error) {
+          setError("Error al enviar invitaciones: " + response.error.message);
+        }
+      }
 
       if (response.error) {
         setError("Error al enviar invitaciones: " + response.error.message);
         return;
       }
-      // Por ahora, guardar en localStorage para simular persistencia
-      // const existingProjects = JSON.parse(
-      //   localStorage.getItem("projects") || "[]"
-      // );
-      // localStorage.setItem(
-      //   "projects",
-      //   JSON.stringify([...existingProjects, projectData])
-      // );
 
       // TODO: Implement the API call POST to create a new project
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
       toast.success("Sala creada y colabordadores invitados con éxito!");
       toast.success("Espere un momento mientras se redirige...");
       router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(projectData.idRoom));
@@ -236,7 +236,11 @@ export default function CreateProjectPage() {
             <Button
               type='button'
               variant='outline'
-              onClick={() => router.push(APP_ROUTES.DASHBOARD.ROOT)}
+              onClick={() => {
+                // Limpiar los objetos importados si se cancela
+                localStorage.removeItem("importedSketchObjects");
+                router.push(APP_ROUTES.DASHBOARD.ROOT);
+              }}
               disabled={isLoading}
               className='bg-red-400 text-white hover:bg-red-500'
             >

@@ -29,48 +29,6 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
     mode: CursorMode.Hidden,
   });
 
-  const [reaction, setReaction] = useState<Reaction[]>([]);
-
-  const broadcast = useBroadcastEvent();
-
-  // useInterval(() => {
-  //   if (
-  //     cursorState.mode === CursorMode.Reaction &&
-  //     cursorState.isPressed &&
-  //     cursor
-  //   ) {
-  //     setReaction((reaction) =>
-  //       reaction.concat([
-  //         {
-  //           point: { x: cursor.x, y: cursor.y },
-  //           value: cursorState.reaction,
-  //           timestamp: Date.now(),
-  //         },
-  //       ])
-  //     );
-
-  //     broadcast({
-  //       x: cursor.x,
-  //       y: cursor.y,
-  //       value: cursorState.reaction,
-  //     });
-  //   }
-  // }, 100);
-
-  // useEventListener((eventData) => {
-  //   const event = eventData.event as ReactionEvent;
-
-  //   setReaction((reactions) =>
-  //     reactions.concat([
-  //       {
-  //         point: { x: cursor.x, y: cursor.y },
-  //         value: event.value,
-  //         timestamp: Date.now(),
-  //       },
-  //     ])
-  //   );
-  // });
-
   const handlePointerMove = useCallback(
     (event: React.PointerEvent) => {
       event.preventDefault();
@@ -155,11 +113,6 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
           mode: CursorMode.Hidden,
         });
       }
-      // else if (e.key === "e") {
-      //   setcursorState({
-      //     mode: CursorMode.ReactionSelector,
-      //   });
-      // }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "/") {
@@ -204,11 +157,6 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
             updateMyPresence={updateMyPresence}
           />
         )}
-
-        {/* {cursorState.mode === CursorMode.ReactionSelector && (
-          <ReactionSelector setReaction={setReactions} />
-        )} */}
-
         <LiveCursors />
       </ContextMenuTrigger>
       <ContextMenuContent className='rigth-menu-content w-40'>

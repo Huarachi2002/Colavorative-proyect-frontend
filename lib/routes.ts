@@ -8,13 +8,13 @@ export const APP_ROUTES = {
   DASHBOARD: {
     ROOT: "/dashboard",
     PROFILE: "/dashboard/profile",
+    IMPORT: "/dashboard/import",
     JOIN_PROJECT: "/dashboard/join-project",
     CREATE_PROJECT: "/dashboard/create-project",
     PROJECT: {
       ROOT: (id: string) => `/dashboard/project/${id}`,
       EDIT: (id: string) => `/dashboard/project/${id}/edit`,
       EXPORT: (id: string) => `/dashboard/project/${id}/export`,
-      IMPORT: "/dashboard/project/import",
     },
   },
 };

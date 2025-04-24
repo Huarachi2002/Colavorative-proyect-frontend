@@ -9,10 +9,12 @@ import {
   CanvasObjectScaling,
   CanvasPathCreated,
   CanvasSelectionCreated,
+  CustomFabricObject,
   RenderCanvas,
 } from "@/types/type";
 import { defaultNavElement } from "@/constants";
 import { createSpecificShape } from "./shapes";
+import { v4 as uuidv4 } from "uuid";
 
 // initialize fabric canvas
 export const initializeFabric = ({
@@ -48,12 +50,6 @@ export const handleCanvasMouseDown = ({
   // get pointer coordinates
   const pointer = canvas.getPointer(options.e);
 
-  /**
-   * get target object i.e., the object that is clicked
-   * findtarget() returns the object that is clicked
-   *
-   * findTarget: http://fabricjs.com/docs/fabric.Canvas.html#findTarget
-   */
   const target = canvas.findTarget(options.e, false);
 
   // set canvas drawing mode to false
@@ -79,11 +75,6 @@ export const handleCanvasMouseDown = ({
 
     // set active object to target
     canvas.setActiveObject(target);
-
-    /**
-     * setCoords() is used to update the controls of the object
-     * setCoords: http://fabricjs.com/docs/fabric.Object.html#setCoords
-     */
     target.setCoords();
   } else {
     isDrawing.current = true;
@@ -96,7 +87,6 @@ export const handleCanvasMouseDown = ({
 
     // if shapeRef is not null, add it to canvas
     if (shapeRef.current) {
-      // add: http://fabricjs.com/docs/fabric.Canvas.html#add
       canvas.add(shapeRef.current);
     }
   }
@@ -161,7 +151,6 @@ export const handleCanvaseMouseMove = ({
   }
 
   // render objects on canvas
-  // renderAll: http://fabricjs.com/docs/fabric.Canvas.html#renderAll
   canvas.renderAll();
 
   // sync shape in storage
@@ -318,7 +307,6 @@ export const renderCanvas = ({
   fabricRef.current?.clear();
 
   Array.from(canvasObjects, ([objectId, objectData]) => {
-
     fabric.util.enlivenObjects(
       [objectData],
       (enlivenedObjects: fabric.Object[]) => {
@@ -369,7 +357,6 @@ export const handleCanvasZoom = ({
   zoom = Math.min(Math.max(minZoom, zoom + delta * zoomStep), maxZoom);
 
   // set zoom to canvas
-  // zoomToPoint: http://fabricjs.com/docs/fabric.Canvas.html#zoomToPoint
   canvas.zoomToPoint({ x: options.e.offsetX, y: options.e.offsetY }, zoom);
 
   options.e.preventDefault();
