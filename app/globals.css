@@ -31,3 +31,29 @@ body {
     @apply flex justify-between px-3 py-2 hover:bg-primary-grey-200 !important;
   }
 }
+
+/* Añadir este archivo a tu proyecto */
+
+.layer-item {
+  transition:
+    background-color 0.2s,
+    opacity 0.2s;
+}
+
+.layer-item:hover .layer-actions {
+  opacity: 1;
+}
+
+.layer-actions {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.layer-drag-over {
+  box-shadow: 0 2px 0 theme("colors.blue.400") inset;
+}
+
+.layer-group-content {
+  transition: max-height 0.3s;
+  overflow: hidden;
+}

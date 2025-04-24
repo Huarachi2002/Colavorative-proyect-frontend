@@ -1,17 +1,9 @@
-import { createClient, LiveMap } from "@liveblocks/client";
+import { createClient, LiveMap, LiveObject } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
-import { ReactionEvent } from "./types/type";
+import { Layer, ReactionEvent } from "./types/type";
 
 const client = createClient({
   publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!,
-  async resolveUsers({ userIds }) {
-    // Lógica para devolver info de usuarios
-    return [];
-  },
-  async resolveMentionSuggestions({ text, roomId }) {
-    // Lógica para devolver sugerencias de menciones
-    return [];
-  },
 });
 
 // Ejemplo de tipados del estado compartido
@@ -20,9 +12,19 @@ export type Presence = {
   cursorColor: string | null;
   message: string | null;
 };
+
+// Modificación para una estructura más compatible con Liveblocks
 type Storage = {
   canvasObjects: LiveMap<string, any>;
+  // Usar LiveMap para almacenar las capas individualmente por ID
+  layers: LiveMap<string, Omit<Layer, "children"> & { childrenIds: string[] }>;
+  // Mantener la estructura de selección y jerarquía por separado
+  layerStructure: LiveObject<{
+    rootLayerIds: string[]; // IDs de las capas raíz
+    selectedLayerIds: string[]; // IDs de capas seleccionadas
+  }>;
 };
+
 type UserMeta = {
   id: string;
   info: {
@@ -31,6 +33,7 @@ type UserMeta = {
     avatar: string;
   };
 };
+
 type RoomEvent = ReactionEvent;
 export type ThreadMetadata = {
   resolved: boolean;

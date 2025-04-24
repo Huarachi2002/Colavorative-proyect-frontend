@@ -2,7 +2,7 @@
 
 import Loader from "@/components/Loader";
 import { RoomProvider } from "@/liveblocks.config";
-import { LiveMap } from "@liveblocks/client";
+import { LiveMap, LiveObject } from "@liveblocks/client";
 import { ClientSideSuspense } from "@liveblocks/react";
 import { ReactNode } from "react";
 
@@ -25,6 +25,13 @@ export default function Room({
       }}
       initialStorage={{
         canvasObjects: new LiveMap(),
+        // Inicializar el mapa de capas como un LiveMap vacío
+        layers: new LiveMap(),
+        // Inicializar la estructura de capas con arrays vacíos para las capas raíz y seleccionadas
+        layerStructure: new LiveObject({
+          rootLayerIds: [],
+          selectedLayerIds: [],
+        }),
       }}
     >
       <ClientSideSuspense fallback={<Loader />}>

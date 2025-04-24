@@ -208,3 +208,21 @@ export type CursorChatProps = {
     }>
   ) => void;
 };
+
+// Tipo para representar una capa en el sistema
+export interface Layer {
+  id: string;
+  objectId?: string; // ID del objeto Fabric asociado (si es un elemento)
+  name: string;
+  type: "element" | "group" | "page";
+  visible: boolean;
+  locked: boolean;
+  childrenIds: string[]; // Capas hijas (para grupos y páginas) - almacenamos IDs en lugar de referencias directas
+  expanded?: boolean; // Estado de UI para mostrar/ocultar hijos en el panel
+}
+
+// Estado global de la estructura de capas
+export interface LayerStructure {
+  rootLayerIds: string[]; // IDs de las capas raíz
+  selectedLayerIds: string[]; // IDs de capas seleccionadas
+}

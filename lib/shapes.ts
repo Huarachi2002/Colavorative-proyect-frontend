@@ -7,6 +7,8 @@ import {
   ImageUpload,
   ModifyShape,
 } from "@/types/type";
+import { useMutation, useStorage } from "@/liveblocks.config";
+import { addLayerForObject, syncNewObjectWithLayers } from "./canvas";
 
 export const createRectangle = (pointer: PointerEvent) => {
   const rect = new fabric.Rect({
@@ -111,6 +113,11 @@ export const handleImageUpload = ({
       shapeRef.current = img;
 
       syncShapeInStorage(img);
+
+      // Utilizar la función syncNewObjectWithLayers que gestiona correctamente el storage
+      // Pasar el objeto img directamente
+      syncNewObjectWithLayers(null, img);
+
       canvas.current.requestRenderAll();
     });
   };

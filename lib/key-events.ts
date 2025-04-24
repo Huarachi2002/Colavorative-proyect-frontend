@@ -2,6 +2,8 @@ import { fabric } from "fabric";
 import { v4 as uuidv4 } from "uuid";
 
 import { CustomFabricObject } from "@/types/type";
+import { useMutation, useStorage } from "@/liveblocks.config";
+import { removeLayerForObject } from "./canvas";
 
 export const handleCopy = (canvas: fabric.Canvas) => {
   const activeObjects = canvas.getActiveObjects();
@@ -68,6 +70,11 @@ export const handleDelete = (
   if (activeObjects.length > 0) {
     activeObjects.forEach((obj: CustomFabricObject<any>) => {
       if (!obj.objectId) return;
+
+      // Usar directamente la función removeLayerForObject que ahora espera
+      // el ID del objeto y el storage como parámetros
+      removeLayerForObject(obj.objectId, null);
+
       canvas.remove(obj);
       deleteShapeFromStorage(obj.objectId);
     });
@@ -104,9 +111,9 @@ export const handleKeyDown = ({
   }
 
   // Check if the key pressed is delete/backspace (delete)
-  // if (e.keyCode === 8 || e.keyCode === 46) {
-  //   handleDelete(canvas, deleteShapeFromStorage);
-  // }
+  if (e.keyCode === 8 || e.keyCode === 46) {
+    handleDelete(canvas, deleteShapeFromStorage);
+  }
 
   // check if the key pressed is ctrl/cmd + x (cut)
   if ((e?.ctrlKey || e?.metaKey) && e.keyCode === 88) {

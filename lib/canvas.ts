@@ -13,6 +13,8 @@ import {
 } from "@/types/type";
 import { defaultNavElement } from "@/constants";
 import { createSpecificShape } from "./shapes";
+import { LiveObject } from "@liveblocks/client";
+import { useMutation, useStorage } from "@/liveblocks.config";
 
 // initialize fabric canvas
 export const initializeFabric = ({
@@ -166,19 +168,26 @@ export const handleCanvasMouseUp = ({
   syncShapeInStorage,
   setActiveElement,
 }: CanvasMouseUp) => {
-  isDrawing.current = false;
-  if (selectedShapeRef.current === "freeform") return;
+  if (isDrawing.current && shapeRef.current) {
+    isDrawing.current = false;
 
-  syncShapeInStorage(shapeRef.current);
+    syncShapeInStorage(shapeRef.current);
 
-  shapeRef.current = null;
-  activeObjectRef.current = null;
-  selectedShapeRef.current = null;
+    // Eliminar la referencia a useStorage.getState() que causa error
+    // En su lugar, esto se manejará a través de useMutation en el componente
+    // que llama a esta función
 
-  if (!canvas.isDrawingMode) {
-    setTimeout(() => {
-      setActiveElement(defaultNavElement);
-    }, 700);
+    if (selectedShapeRef.current === "freeform") return;
+
+    shapeRef.current = null;
+    activeObjectRef.current = null;
+    selectedShapeRef.current = null;
+
+    if (!canvas.isDrawingMode) {
+      setTimeout(() => {
+        setActiveElement(defaultNavElement);
+      }, 700);
+    }
   }
 };
 
@@ -207,6 +216,8 @@ export const handlePathCreated = ({
   });
 
   syncShapeInStorage(path);
+  // Eliminar la referencia a useStorage.getState() que causa error
+  // Esto se manejará a través de useMutation en el componente que llama a esta función
 };
 
 export const handleCanvasObjectMoving = ({
@@ -359,4 +370,260 @@ export const handleCanvasZoom = ({
 
   options.e.preventDefault();
   options.e.stopPropagation();
+};
+
+// #Funciones Layers
+
+// Función para actualizar la estructura de capas al añadir un elemento
+export const addLayerForObject = (object: fabric.Object, storage: any) => {
+  const objectId = (object as any).objectId;
+  if (!objectId) return;
+
+  // Crear una capa para el objeto
+  const layerData = createLayerForObject(object);
+  if (!layerData) return;
+
+  // Si storage es null, la función se está llamando desde un contexto donde no hay storage
+  // En ese caso, no hacemos nada aquí y esperamos que se llame más adelante con un storage válido
+  if (!storage) return layerData;
+
+  // Añadir la nueva capa al mapa
+  const layersMap = storage.get("layers");
+  layersMap.set(layerData.id, layerData);
+
+  // Añadir el ID de la capa a la lista de capas raíz
+  const layerStructure = storage.get("layerStructure");
+  layerStructure.update({
+    rootLayerIds: [...layerStructure.get("rootLayerIds"), layerData.id],
+  });
+
+  return layerData;
+};
+
+// Función para eliminar una capa cuando se elimina un objeto
+export const removeLayerForObject = (objectId: string, storage: any) => {
+  // Si storage es null, la función se está llamando desde un contexto donde no hay storage
+  // En ese caso, no hacemos nada aquí y esperamos que se llame más adelante con un storage válido
+  if (!storage) return;
+
+  const layersMap = storage.get("layers");
+  const layerStructure = storage.get("layerStructure");
+
+  // Buscar la capa que tiene este objectId
+  let layerIdToRemove = null;
+  for (const [id, layer] of layersMap.entries()) {
+    if (layer.objectId === objectId) {
+      layerIdToRemove = id;
+      break;
+    }
+  }
+
+  if (layerIdToRemove) {
+    // Eliminar de rootLayerIds si es una capa raíz
+    const rootLayerIds = layerStructure.get("rootLayerIds");
+    if (rootLayerIds.includes(layerIdToRemove)) {
+      layerStructure.update({
+        rootLayerIds: rootLayerIds.filter((id) => id !== layerIdToRemove),
+      });
+    } else {
+      // Buscar y eliminar de la lista de hijos de otra capa
+      for (const [parentId, parentLayer] of layersMap.entries()) {
+        if (
+          parentLayer.childrenIds &&
+          parentLayer.childrenIds.includes(layerIdToRemove)
+        ) {
+          const newChildrenIds = parentLayer.childrenIds.filter(
+            (id) => id !== layerIdToRemove
+          );
+          layersMap.set(parentId, {
+            ...parentLayer,
+            childrenIds: newChildrenIds,
+          });
+          break;
+        }
+      }
+    }
+
+    // Eliminar la capa del mapa
+    layersMap.delete(layerIdToRemove);
+  }
+};
+
+// Función para encontrar una capa por objectId
+export const findLayerIndexByObjectId = (
+  layers: any[],
+  objectId: string
+): number => {
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].objectId === objectId) {
+      return i;
+    }
+    // Si tiene hijos, buscar recursivamente
+    if (layers[i].children && layers[i].children.length > 0) {
+      const childIndex = findLayerIndexByObjectId(layers[i].children, objectId);
+      if (childIndex !== -1) {
+        return childIndex;
+      }
+    }
+  }
+  return -1;
+};
+
+// Obtener un nombre por defecto para un objeto según su tipo
+export const getDefaultNameForObject = (object: fabric.Object): string => {
+  const type = object.type;
+  switch (type) {
+    case "rectangle":
+      return "Rectángulo";
+    case "circle":
+      return "Círculo";
+    case "triangle":
+      return "Triángulo";
+    case "line":
+      return "Línea";
+    case "path":
+      return "Trazo";
+    case "i-text":
+      return "Texto";
+    case "text":
+      return `Texto: ${(object as fabric.IText).text?.substring(0, 10) || ""}`;
+    case "image":
+      return "Imagen";
+    case "path":
+      return "Dibujo Libre";
+    case "group":
+      return "Grupo";
+    default:
+      return `Elemento ${type || ""}`;
+  }
+};
+
+interface LayerStructureData {
+  layerStructure: {
+    rootLayerIds: string[];
+    selectedLayerIds: string[];
+  };
+  layersMap: Map<string, any> | any;
+}
+
+// Función para actualizar el orden de los objetos en el canvas según la estructura de capas
+export const updateCanvasOrderFromLayers = (
+  canvas: fabric.Canvas,
+  { layerStructure, layersMap }: LayerStructureData
+) => {
+  if (!canvas || !layerStructure || !layersMap) return;
+
+  try {
+    // Obtener todos los objetos del canvas
+    const canvasObjects = canvas.getObjects();
+
+    // Función recursiva para procesar capas y actualizar el orden de objetos
+    const processLayers = (layerIds: string[], zIndex = 0): number => {
+      let currentZIndex = zIndex;
+
+      // Recorrer las capas en orden inverso (la última capa será la más alta en el canvas)
+      for (let i = layerIds.length - 1; i >= 0; i--) {
+        const layerId = layerIds[i];
+        const layer = layersMap.get(layerId);
+
+        if (!layer) continue;
+
+        // Si la capa tiene hijos, procesarlos primero (capas anidadas)
+        if (
+          layer.type === "group" &&
+          layer.childrenIds &&
+          layer.childrenIds.length > 0
+        ) {
+          currentZIndex = processLayers(layer.childrenIds, currentZIndex);
+        }
+
+        // Actualizar el objeto de canvas si existe
+        if (layer.objectId) {
+          const object = canvasObjects.find(
+            (obj) => (obj as any).objectId === layer.objectId
+          );
+          if (object) {
+            // Mover el objeto al índice z apropiado
+            canvas.moveTo(object, currentZIndex);
+            currentZIndex++;
+          }
+        }
+      }
+
+      return currentZIndex;
+    };
+
+    // Comenzar procesando las capas raíz
+    processLayers(layerStructure.rootLayerIds);
+
+    // Renderizar el canvas para aplicar los cambios
+    if (canvas && typeof canvas.renderAll === "function") {
+      canvas.renderAll();
+    }
+  } catch (error) {
+    console.error("Error en updateCanvasOrderFromLayers:", error);
+  }
+};
+
+// Función para crear una capa para un nuevo objeto de fabric
+export const createLayerForObject = (object: fabric.Object) => {
+  const objectId = (object as any).objectId;
+  if (!objectId) return null;
+
+  return {
+    id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: object.type || "Objeto",
+    type: object.type || "element",
+    visible: object.visible !== false,
+    locked: !!object.lockMovementX && !!object.lockMovementY,
+    childrenIds: [],
+    objectId,
+  };
+};
+
+// Función para sincronizar un nuevo objeto con la estructura de capas
+export const syncNewObjectWithLayers = (
+  storage: any,
+  object: fabric.Object
+) => {
+  // Si storage es null, la función se está llamando desde un contexto donde no hay storage
+  // En ese caso, no hacemos nada aquí y esperamos que se llame más adelante con un storage válido
+  if (!storage) return;
+
+  const objectId = (object as any).objectId;
+  if (!objectId) return;
+
+  // IMPORTANTE: Verificar si ya existe una capa con este objectId antes de crear una nueva
+  const layersMap = storage.get("layers");
+
+  // Buscar si ya existe una capa con este objectId
+  let existingLayerId = null;
+  for (const [id, layer] of layersMap.entries()) {
+    if (layer.objectId === objectId) {
+      existingLayerId = id;
+      break;
+    }
+  }
+
+  // Si ya existe una capa, no crear una nueva
+  if (existingLayerId) {
+    console.log(
+      `Ya existe una capa para el objeto ${objectId}, no se creará una nueva`
+    );
+    return;
+  }
+
+  // Si no existe, crear una nueva capa
+  const layerData = createLayerForObject(object);
+  if (!layerData) return;
+
+  const layerStructure = storage.get("layerStructure");
+
+  // Añadir la nueva capa al mapa
+  layersMap.set(layerData.id, layerData);
+
+  // Añadir el ID de la capa a la lista de capas raíz
+  layerStructure.update({
+    rootLayerIds: [...layerStructure.get("rootLayerIds"), layerData.id],
+  });
 };

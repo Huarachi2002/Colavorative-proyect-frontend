@@ -17,6 +17,7 @@ import {
   handleResize,
   initializeFabric,
   renderCanvas,
+  syncNewObjectWithLayers,
 } from "@/lib/canvas";
 import { ActiveElement, Attributes } from "@/types/type";
 import { useMutation, useRedo, useStorage, useUndo } from "@/liveblocks.config";
@@ -38,7 +39,6 @@ export default function ProjectCanvas() {
 
   const params = useParams();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
-  const [loadingImported, setLoadingImported] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
@@ -69,8 +69,20 @@ export default function ProjectCanvas() {
     shapeData.objectId = objectId;
 
     const canvasObjects = storage.get("canvasObjects");
-
     canvasObjects.set(objectId, shapeData);
+
+    // Intentar sincronizar el objeto con la estructura de capas si no existe ya
+    // Esto ahora es seguro gracias a la verificación en syncNewObjectWithLayers
+    syncNewObjectWithLayers(storage, object);
+  }, []);
+
+  // Ya no necesitamos esta función separada, ya que syncShapeInStorage ya hace esto
+  // La mantenemos por compatibilidad pero está deprecada
+  const handleAddObjectToLayers = useMutation(({ storage }, object) => {
+    if (!object) return;
+    // Esto ya se hace en syncShapeInStorage y allí ya verificamos duplicados
+    // Así que no debería causar problemas
+    syncNewObjectWithLayers(storage, object);
   }, []);
 
   const [activeElement, setActiveElement] = useState<ActiveElement>({
@@ -88,12 +100,80 @@ export default function ProjectCanvas() {
       canvasObjects.delete(key);
     }
 
+    // Limpiar también la estructura de capas
+    const layerStructure = storage.get("layerStructure");
+    const layersMap = storage.get("layers");
+
+    // Limpiar las capas
+    layerStructure.update({
+      rootLayerIds: [],
+      selectedLayerIds: [],
+    });
+
+    // Limpiar el mapa de capas
+    for (const [key] of layersMap.entries()) {
+      layersMap.delete(key);
+    }
+
     return canvasObjects.size === 0;
   }, []);
 
   const deleteShapeFromStorage = useMutation(({ storage }, objectId) => {
     const canvasObjects = storage.get("canvasObjects");
     canvasObjects.delete(objectId);
+
+    // Buscar y eliminar la capa asociada con este objeto
+    const layersMap = storage.get("layers");
+    const layerStructure = storage.get("layerStructure");
+
+    // Encontrar la capa que tiene este objectId
+    let layerIdToRemove = null;
+    for (const [id, layer] of layersMap.entries()) {
+      if (layer.objectId === objectId) {
+        layerIdToRemove = id;
+        break;
+      }
+    }
+
+    if (layerIdToRemove) {
+      // Eliminar de rootLayerIds si es una capa raíz
+      const rootLayerIds = layerStructure.get("rootLayerIds");
+      if (rootLayerIds.includes(layerIdToRemove)) {
+        layerStructure.update({
+          rootLayerIds: rootLayerIds.filter((id) => id !== layerIdToRemove),
+        });
+      } else {
+        // Buscar y eliminar de la lista de hijos de otra capa
+        for (const [parentId, parentLayer] of layersMap.entries()) {
+          if (
+            parentLayer.childrenIds &&
+            parentLayer.childrenIds.includes(layerIdToRemove)
+          ) {
+            const newChildrenIds = parentLayer.childrenIds.filter(
+              (id) => id !== layerIdToRemove
+            );
+            layersMap.set(parentId, {
+              ...parentLayer,
+              childrenIds: newChildrenIds,
+            });
+            break;
+          }
+        }
+      }
+
+      // Eliminar la capa del mapa
+      layersMap.delete(layerIdToRemove);
+
+      // Actualizar la selección si esta capa estaba seleccionada
+      const selectedLayerIds = layerStructure.get("selectedLayerIds");
+      if (selectedLayerIds.includes(layerIdToRemove)) {
+        layerStructure.update({
+          selectedLayerIds: selectedLayerIds.filter(
+            (id) => id !== layerIdToRemove
+          ),
+        });
+      }
+    }
   }, []);
 
   const handleActiveElement = (elem: ActiveElement) => {
@@ -131,8 +211,6 @@ export default function ProjectCanvas() {
 
     const loadProjectObjects = async () => {
       try {
-        setLoadingImported(true);
-
         // Verificar si hay objetos importados en localStorage
         const importedObjectsStr = localStorage.getItem(
           "importedSketchObjects"
@@ -142,7 +220,8 @@ export default function ProjectCanvas() {
         // Parsear los objetos importados
         const importedObjects = JSON.parse(importedObjectsStr);
         if (!importedObjects || !importedObjects.length) return;
-
+        // Limpiar localStorage después de cargar los objetos
+        localStorage.removeItem("importedSketchObjects");
         // Para cada objeto importado, crear el objeto Fabric correspondiente
         importedObjects.forEach((element: any) => {
           try {
@@ -241,7 +320,10 @@ export default function ProjectCanvas() {
             }
             if (fabricObject) {
               fabricRef.current!.add(fabricObject);
+              // Ahora solo llamamos a syncShapeInStorage, que ya hace la sincronización de capas
               syncShapeInStorage(fabricObject);
+              // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
+              // handleAddObjectToLayers(fabricObject); <- ELIMINAR ESTA LÍNEA
             }
           } catch (error) {
             console.error(`Error al crear objeto ${element.type}:`, error);
@@ -255,12 +337,10 @@ export default function ProjectCanvas() {
         localStorage.removeItem("importedSketchObjects");
       } catch (error) {
         console.error("Error loading imported objects:", error);
-      } finally {
-        setLoadingImported(false);
       }
     };
     loadProjectObjects();
-  }, [projectId, syncShapeInStorage]);
+  }, [projectId, syncShapeInStorage]); // Ya no dependemos de handleAddObjectToLayers
 
   useEffect(() => {
     const canvas = initializeFabric({ canvasRef, fabricRef });
@@ -296,6 +376,12 @@ export default function ProjectCanvas() {
         setActiveElement,
         activeObjectRef,
       });
+
+      // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
+      // Si se acaba de crear un objeto, ya se sincronizó en handleCanvasMouseUp
+      // if (shapeRef.current && !isDrawing.current) {
+      //   handleAddObjectToLayers(shapeRef.current);
+      // }
     });
 
     canvas.on("object:modified", (options) => {
@@ -325,6 +411,12 @@ export default function ProjectCanvas() {
         options,
         syncShapeInStorage,
       });
+
+      // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
+      // Si se creó un path, ya se sincronizó en handlePathCreated
+      // if (options.path) {
+      //   handleAddObjectToLayers(options.path);
+      // }
     });
 
     window.addEventListener("resize", () => {
@@ -345,7 +437,7 @@ export default function ProjectCanvas() {
     return () => {
       canvas.dispose();
     };
-  }, []);
+  }, []); // Ya no dependemos de handleAddObjectToLayers
 
   useEffect(() => {
     renderCanvas({
@@ -373,8 +465,13 @@ export default function ProjectCanvas() {
         }}
       />
       <section className='flex h-full flex-row'>
-        <LeftSidebar
+        {/* <LeftSidebar
           allShapes={canvasObjects ? Array.from(canvasObjects) : []}
+        /> */}
+        <LeftSidebar
+          fabricRef={fabricRef}
+          activeObjectRef={activeObjectRef}
+          syncShapeInStorage={syncShapeInStorage}
         />
         <Live canvasRef={canvasRef} undo={undo} redo={redo} />
         <RightSidebar
