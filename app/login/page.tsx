@@ -5,13 +5,13 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import Image from "next/image";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSearchParams } from "next/navigation";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { login } = useAuth();
   const searchParams = useSearchParams();
-  const registered = searchParams.get("registered");
+  const registered = searchParams!.get("registered");
 
   useEffect(() => {
     if (registered === "true") {

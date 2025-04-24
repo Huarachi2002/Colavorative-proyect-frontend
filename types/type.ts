@@ -125,6 +125,11 @@ export type NavbarProps = {
   handleActiveElement: (element: ActiveElement) => void;
 };
 
+export type AccessDeniedProps = {
+  message: string;
+  handleOnClick: () => void;
+};
+
 export type ShapesMenuProps = {
   item: {
     name: string;

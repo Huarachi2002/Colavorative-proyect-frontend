@@ -9,12 +9,10 @@ import {
   CanvasObjectScaling,
   CanvasPathCreated,
   CanvasSelectionCreated,
-  CustomFabricObject,
   RenderCanvas,
 } from "@/types/type";
 import { defaultNavElement } from "@/constants";
 import { createSpecificShape } from "./shapes";
-import { v4 as uuidv4 } from "uuid";
 
 // initialize fabric canvas
 export const initializeFabric = ({

@@ -17,6 +17,7 @@ const client = createClient({
 // Ejemplo de tipados del estado compartido
 export type Presence = {
   cursor: { x: number; y: number } | null;
+  cursorColor: string | null;
   message: string | null;
 };
 type Storage = {

@@ -15,9 +15,10 @@ import { APP_ROUTES } from "@/lib/routes";
 import { Project, User } from "@/types/type";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { projectsApi } from "@/lib/api";
+import { projectsApi, usersApi, usersRoomsApi } from "@/lib/api";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
+import AccessDenied from "@/components/AccessDenied";
 
 export default function EditProjectPage() {
   const router = useRouter();
@@ -42,7 +43,6 @@ export default function EditProjectPage() {
   const [description, setDescription] = useState("");
   const [maxMembers, setMaxMembers] = useState(5);
   const [collaboratorsEmails, setCollaboratorsEmails] = useState<string[]>([]);
-  const [collaborators, setCollaborators] = useState<User[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
 
@@ -78,7 +78,6 @@ export default function EditProjectPage() {
         setDescription(projectFound.description);
         setMaxMembers(projectFound.maxMembers);
         setCollaboratorsEmails(collaboratorEmails);
-        setCollaborators(collaboratorProject);
       } catch (error) {
         console.error("Error al cargar el proyecto:", error);
         setError("Error loading project");
@@ -125,21 +124,30 @@ export default function EditProjectPage() {
     setError("");
   };
 
-  const handleRemoveCollaborator = async (id: string, email: string) => {
+  const handleRemoveCollaborator = async (email: string) => {
     try {
-      console.log("handleRemoveCollaborator id, email", id, email);
-      const response = await projectsApi.removeCollaborator(project.id, id);
-      console.log("response", response);
+      console.log("handleRemoveCollaborator email", email);
+      const responseUser = await usersApi.getByEmail(email);
+      if (responseUser.data.message !== "El usuario no existe") {
+        const response = await projectsApi.removeCollaborator(
+          project.id,
+          email
+        );
+        console.log("response", response);
 
-      if (response.error) {
-        setError("Error al eliminar el colaborador");
-        return;
+        if (response.error) {
+          setError("Error al eliminar el colaborador");
+          return;
+        }
+
+        toast.success(
+          `Colaborador ${email} BLOQUEADO correctamente del proyecto`
+        );
       }
 
-      toast.success(
-        `Colaborador ${email} eliminado correctamente del proyecto`
-      );
+      console.log("collaboratorEmails AFTER:", collaboratorsEmails);
       setCollaboratorsEmails(collaboratorsEmails.filter((c) => c !== email));
+      console.log("collaboratorEmails BEFORE:", collaboratorsEmails);
     } catch (error) {
       console.error("Error al eliminar colaborador:", error);
       setError("Error al eliminar el colaborador");
@@ -170,6 +178,24 @@ export default function EditProjectPage() {
         return;
       }
 
+      if (collaboratorsEmails.length > 0) {
+        const responseInvitacion = await usersRoomsApi.sendInvitation({
+          code: project.code,
+          name: project.name,
+          emails: collaboratorsEmails,
+        });
+
+        console.log("Response Invitacion", responseInvitacion);
+
+        if (responseInvitacion.error) {
+          setError(
+            "Error al enviar invitaciones: " + responseInvitacion.error.message
+          );
+        }
+
+        toast.success("Invitaciones enviadas correctamente!");
+      }
+      toast.success("Proyecto actualizado correctamente!");
       router.push(APP_ROUTES.DASHBOARD.PROJECT.ROOT(project!.idRoom));
     } catch (error) {
       console.error("Error al actualizar proyecto:", error);
@@ -181,20 +207,10 @@ export default function EditProjectPage() {
 
   if (!isCreator()) {
     return (
-      <div className='flex h-full items-center justify-center pt-6'>
-        <div className='text-center'>
-          <h2 className='text-xl font-medium text-gray-900'>Acceso denegado</h2>
-          <p className='mt-2 text-gray-600'>
-            Solo el creador puede editar este proyecto
-          </p>
-          <Button
-            onClick={() => router.back()}
-            className='w-full bg-blue-300 text-white hover:bg-blue-400'
-          >
-            Volver
-          </Button>
-        </div>
-      </div>
+      <AccessDenied
+        message='Solo el creador puede editar este proyecto'
+        handleOnClick={() => router.back()}
+      />
     );
   }
 
@@ -287,17 +303,15 @@ export default function EditProjectPage() {
             <div className='ml-6 space-x-2'>
               <CardTitle>Colaboradores invitados:</CardTitle>
               <ul className='space-y-1'>
-                {collaborators.map((user) => (
+                {collaboratorsEmails.map((email) => (
                   <li
-                    key={user.id}
+                    key={email}
                     className='flex items-center justify-between rounded-md bg-gray-50 px-3 py-2'
                   >
-                    <span className='text-sm text-gray-800'>{user.email}</span>
+                    <span className='text-sm text-gray-800'>{email}</span>
                     <Button
                       type='button'
-                      onClick={() =>
-                        handleRemoveCollaborator(user.id, user.email)
-                      }
+                      onClick={() => handleRemoveCollaborator(email)}
                       className='text-red-500 hover:text-red-700'
                     >
                       <svg

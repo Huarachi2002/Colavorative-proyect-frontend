@@ -204,7 +204,7 @@ export default function ImportPage() {
           return new fabric.IText(element.text || "Texto", {
             left: element.left,
             top: element.top,
-            fill: element.fill || "#aabbcc",
+            fill: element.fill || "#000000",
             fontFamily: element.fontFamily || "Helvetica",
             fontSize: element.fontSize || 36,
             fontWeight: element.fontWeight || "400",
@@ -215,8 +215,8 @@ export default function ImportPage() {
           // Si la IA detectó un dibujo a mano alzada
           if (element.path) {
             return new fabric.Path(element.path, {
-              fill: element.fill || "#aabbcc",
-              stroke: element.strokeColor || "#000",
+              fill: element.fill || "#000000",
+              stroke: element.stroke || "#000",
               strokeWidth: element.strokeWidth || 2,
               objectId: element.objectId,
             } as CustomFabricObject<fabric.Path>);
@@ -291,7 +291,8 @@ export default function ImportPage() {
                     </div>
                   )}
 
-                  {previewUrl && status === "idle" && (
+                  {/* {previewUrl && status === "idle" && ( */}
+                  {previewUrl && (
                     <div className='mt-4'>
                       <h3 className='mb-2 text-lg font-medium'>
                         Vista previa de la imagen
@@ -303,13 +304,14 @@ export default function ImportPage() {
                           className='h-auto w-full'
                         />
                       </div>
-
-                      <Button
-                        onClick={handleProcessSketch}
-                        className='mt-4 w-full bg-blue-400 text-white hover:bg-blue-500'
-                      >
-                        Procesar Boceto
-                      </Button>
+                      {status === "idle" && (
+                        <Button
+                          onClick={handleProcessSketch}
+                          className='mt-4 w-full bg-blue-400 text-white hover:bg-blue-500'
+                        >
+                          Procesar Boceto
+                        </Button>
+                      )}
                     </div>
                   )}
 
@@ -352,8 +354,17 @@ export default function ImportPage() {
                 </CardContent>
 
                 {status === "completed" && importedObjects.length > 0 && (
-                  <CardFooter>
-                    <Button onClick={handleCreateProject} className='w-full'>
+                  <CardFooter className='flex justify-between'>
+                    <Button
+                      onClick={handleProcessSketch}
+                      className='w-max bg-yellow-400 text-white hover:bg-yellow-500'
+                    >
+                      Reimaginar boceto
+                    </Button>
+                    <Button
+                      onClick={handleCreateProject}
+                      className='w-max bg-green-400 text-white hover:bg-green-500'
+                    >
                       Crear nuevo proyecto con este boceto
                     </Button>
                   </CardFooter>

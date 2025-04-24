@@ -2,7 +2,6 @@ import { Work_Sans } from "next/font/google";
 
 import "./globals.css";
 
-import Room from "./Room";
 import { Metadata } from "next";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "sonner";

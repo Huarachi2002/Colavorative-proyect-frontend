@@ -237,8 +237,8 @@ export const projectsApi = {
       body: JSON.stringify({ email }),
     }),
 
-  removeCollaborator: (projectId: number, userId: string) =>
-    fetchApi(`/room/${projectId}/collaborators/${userId}`, {
+  removeCollaborator: (projectId: number, email: string) =>
+    fetchApi(`/room/${projectId}/collaborators/${email}`, {
       method: "PUT",
     }),
 
@@ -281,10 +281,20 @@ export const usersRoomsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  validateJoinProject: (idRoom: string, idUser: string) =>
+    fetchApi(`/user-room/${idUser}/validate-join/${idRoom}`, {
+      method: "GET",
+    }),
 };
 
 export const usersApi = {
   getCurrent: () => fetchApi("/user/me"),
+
+  getByEmail: (email: string) =>
+    fetchApi(`/user/email/${email}`, {
+      method: "GET",
+    }),
 
   updateProfile: (id: string, data: { name: string; email: string }) =>
     fetchApi(`/user/${id}`, {

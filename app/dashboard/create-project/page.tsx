@@ -28,12 +28,6 @@ export default function CreateProjectPage() {
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
-  const [hasImportedObjects, setHasImportedObjects] = useState(false);
-
-  useEffect(() => {
-    const importedObjects = localStorage.getItem("importedSketchObjects");
-    setHasImportedObjects(!!importedObjects);
-  }, []);
 
   const handleAddCollaborator = () => {
     if (!emailInput) return;

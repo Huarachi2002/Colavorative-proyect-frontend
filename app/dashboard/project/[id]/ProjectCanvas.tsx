@@ -126,94 +126,6 @@ export default function ProjectCanvas() {
     selectedShapeRef.current = elem?.value as string;
   };
 
-  const loadImportedFabricObjects = async (
-    canvas: fabric.Canvas,
-    objects: any[],
-    syncShapeInStorage: any
-  ) => {
-    if (!canvas || !objects || !objects.length) return;
-
-    // Necesitamos crear un evento de puntero simulado para cada objeto
-    objects.forEach((obj) => {
-      try {
-        const simulatedPointer = {
-          x: obj.left || 0,
-          y: obj.top || 0,
-        } as unknown as PointerEvent;
-
-        let fabricObject: fabric.Object | null = null;
-
-        switch (obj.type) {
-          case "rectangle":
-            fabricObject = createRectangle(simulatedPointer);
-            if (fabricObject) {
-              fabricObject.set({
-                width: obj.width || 100,
-                height: obj.height || 100,
-                fill: obj.fill || "#aabbcc",
-              } as fabric.IRectOptions);
-            }
-            break;
-
-          case "triangle":
-            fabricObject = createTriangle(simulatedPointer);
-            if (fabricObject) {
-              fabricObject.set({
-                width: obj.width || 100,
-                height: obj.height || 100,
-                fill: obj.fill || "#aabbcc",
-              } as fabric.ITriangleOptions);
-            }
-            break;
-
-          case "circle":
-            fabricObject = createCircle(simulatedPointer);
-            if (fabricObject) {
-              fabricObject.set({
-                radius: obj.radius || 50,
-                fill: obj.fill || "#aabbcc",
-              } as fabric.ICircleOptions);
-            }
-            break;
-
-          case "line":
-            fabricObject = createLine(simulatedPointer);
-            if (fabricObject && obj.points && obj.points.length === 4) {
-              fabricObject.set({
-                x1: obj.points[0],
-                y1: obj.points[1],
-                x2: obj.points[2],
-                y2: obj.points[3],
-                stroke: obj.stroke || "#aabbcc",
-              } as fabric.ILineOptions);
-            }
-            break;
-
-          case "text":
-            fabricObject = createText(simulatedPointer, obj.text || "Texto");
-            if (fabricObject) {
-              fabricObject.set({
-                fill: obj.fill || "#aabbcc",
-                fontFamily: obj.fontFamily || "Helvetica",
-                fontSize: obj.fontSize || 36,
-                fontWeight: obj.fontWeight || "400",
-              } as fabric.ITextOptions);
-            }
-            break;
-        }
-
-        if (fabricObject) {
-          canvas.add(fabricObject);
-          syncShapeInStorage(fabricObject);
-        }
-      } catch (error) {
-        console.error(`Error al cargar objeto ${obj.type}:`, error);
-      }
-    });
-
-    canvas.renderAll();
-  };
-
   useEffect(() => {
     if (!fabricRef.current) return;
 
@@ -312,6 +224,18 @@ export default function ProjectCanvas() {
                   } as fabric.ITextOptions);
                 }
                 break;
+
+              case "path":
+                if (element.path) {
+                  fabricObject = new fabric.Path(element.path, {
+                    left: element.left,
+                    top: element.top,
+                    fill: element.fill || "#000000",
+                    stroke: element.stroke || "#000000",
+                    strokeWidth: element.strokeWidth || 1,
+                    objectId: element.objectId,
+                  } as fabric.IPathOptions);
+                }
               default:
                 break;
             }
