@@ -13,8 +13,6 @@ import {
 } from "@/types/type";
 import { defaultNavElement } from "@/constants";
 import { createSpecificShape } from "./shapes";
-import { LiveObject } from "@liveblocks/client";
-import { useMutation, useStorage } from "@/liveblocks.config";
 
 // initialize fabric canvas
 export const initializeFabric = ({
@@ -110,8 +108,7 @@ export const handleCanvaseMouseMove = ({
   // get pointer coordinates
   const pointer = canvas.getPointer(options.e);
 
-  // depending on the selected shape, set the dimensions of the shape stored in shapeRef in previous step of handelCanvasMouseDown
-  // calculate shape dimensions based on pointer coordinates
+  // calcular el objeto en base a su posicion
   switch (selectedShapeRef?.current) {
     case "rectangle":
       shapeRef.current?.set({
@@ -497,7 +494,7 @@ export const handleResize = ({ canvas }: { canvas: fabric.Canvas | null }) => {
   });
 };
 
-// zoom canvas on mouse scroll
+// Mejorar el zoom para soportar mayor rango y mejor control
 export const handleCanvasZoom = ({
   options,
   canvas,
@@ -508,19 +505,101 @@ export const handleCanvasZoom = ({
   const delta = options.e?.deltaY;
   let zoom = canvas.getZoom();
 
-  // allow zooming to min 20% and max 100%
-  const minZoom = 0.2;
-  const maxZoom = 1;
+  // allow zooming from 10% to 500%
+  const minZoom = 0.1;
+  const maxZoom = 5;
   const zoomStep = 0.001;
 
   // calculate zoom based on mouse scroll wheel with min and max zoom
-  zoom = Math.min(Math.max(minZoom, zoom + delta * zoomStep), maxZoom);
+  zoom = Math.min(Math.max(minZoom, zoom - delta * zoomStep), maxZoom);
 
-  // set zoom to canvas
+  // set zoom to canvas at the point where the mouse is
   canvas.zoomToPoint({ x: options.e.offsetX, y: options.e.offsetY }, zoom);
 
   options.e.preventDefault();
   options.e.stopPropagation();
+};
+
+// Variables para controlar el estado del pan (desplazamiento)
+let isPanning = false;
+let lastPosX: number;
+let lastPosY: number;
+
+// Función simplificada para iniciar el desplazamiento (solo con botón medio)
+export const handleCanvasPanStart = ({
+  options,
+  canvas,
+}: {
+  options: fabric.IEvent;
+  canvas: fabric.Canvas;
+}) => {
+  const mouseEvent = options.e as MouseEvent;
+
+  // Solo activar el pan con el botón medio del ratón (button === 1)
+  if (mouseEvent.button === 1) {
+    isPanning = true;
+    canvas.selection = false; // deshabilitar selección durante el pan
+    canvas.discardActiveObject(); // deseleccionar objetos activos
+    canvas.requestRenderAll();
+
+    // Guardar la posición actual del ratón
+    lastPosX = mouseEvent.clientX;
+    lastPosY = mouseEvent.clientY;
+
+    // Cambiar el cursor a 'grabbing' durante el pan
+    canvas.defaultCursor = "grabbing";
+
+    // Marcar el evento para saber que estamos en modo desplazamiento
+    (options.e as any).__isPanning = true;
+
+    options.e.preventDefault();
+    options.e.stopPropagation();
+  }
+};
+
+// Función para desplazar el lienzo
+export const handleCanvasPan = ({
+  options,
+  canvas,
+}: {
+  options: fabric.IEvent;
+  canvas: fabric.Canvas;
+}) => {
+  if (!isPanning) return;
+
+  const vpt = canvas.viewportTransform;
+  if (!vpt) return;
+
+  const mouseEvent = options.e as MouseEvent;
+  const deltaX = mouseEvent.clientX - lastPosX;
+  const deltaY = mouseEvent.clientY - lastPosY;
+
+  // Actualizar la última posición del ratón
+  lastPosX = mouseEvent.clientX;
+  lastPosY = mouseEvent.clientY;
+
+  // Mover el viewport del canvas
+  vpt[4] += deltaX;
+  vpt[5] += deltaY;
+
+  // Marcar el evento como procesado para desplazamiento
+  (options.e as any).__isPanning = true;
+
+  // Renderizar el canvas con la nueva posición
+  canvas.requestRenderAll();
+
+  options.e.preventDefault();
+  options.e.stopPropagation();
+};
+
+// Función para finalizar el desplazamiento
+export const handleCanvasPanEnd = ({ canvas }: { canvas: fabric.Canvas }) => {
+  if (isPanning) {
+    isPanning = false;
+    canvas.selection = true; // rehabilitar selección
+    canvas.defaultCursor = "default"; // restaurar cursor
+    canvas.requestRenderAll();
+  }
 };
 
 // #Funciones Layers
@@ -740,22 +819,26 @@ export const syncNewObjectWithLayers = (
   // Si storage es null, la función se está llamando desde un contexto donde no hay storage
   // En ese caso, no hacemos nada aquí y esperamos que se llame más adelante con un storage válido
   if (!storage) return;
-
+  console.log("==========syncNewObjectWithLayers===================");
   const objectId = (object as any).objectId;
+  console.log(" objectId: ", objectId);
   if (!objectId) return;
 
   // IMPORTANTE: Verificar si ya existe una capa con este objectId antes de crear una nueva
   const layersMap = storage.get("layers");
+  console.log("layersMap: ", layersMap);
 
   // Buscar si ya existe una capa con este objectId
   let existingLayerId = null;
   for (const [id, layer] of layersMap.entries()) {
+    console.log("layer: ", layer.objectId, "objectId: ", objectId);
     if (layer.objectId === objectId) {
       existingLayerId = id;
       break;
     }
   }
 
+  console.log("existingLayerId: ", existingLayerId);
   // Si ya existe una capa, no crear una nueva
   if (existingLayerId) {
     console.log(
@@ -766,11 +849,14 @@ export const syncNewObjectWithLayers = (
 
   // Si no existe, crear una nueva capa
   const layerData = createLayerForObject(object);
+  console.log("Create New layerData: ", layerData);
   if (!layerData) return;
 
   const layerStructure = storage.get("layerStructure");
+  console.log("layerStructure: ", layerStructure);
 
   // Añadir la nueva capa al mapa
+  console.log("Later set layerData: ", layerData);
   layersMap.set(layerData.id, layerData);
 
   // Añadir el ID de la capa a la lista de capas raíz

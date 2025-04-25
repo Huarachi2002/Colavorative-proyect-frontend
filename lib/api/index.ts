@@ -229,7 +229,7 @@ export const projectsApi = {
       body: JSON.stringify(data),
     }),
 
-  delete: (id: string) =>
+  delete: (id: number) =>
     fetchApi(`/room/${id}`, {
       method: "DELETE",
     }),

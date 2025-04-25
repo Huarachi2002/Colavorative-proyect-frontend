@@ -18,6 +18,7 @@ import {
   initializeFabric,
   renderCanvas,
   syncNewObjectWithLayers,
+  handleCanvasZoom,
 } from "@/lib/canvas";
 import { ActiveElement, Attributes } from "@/types/type";
 import { useMutation, useRedo, useStorage, useUndo } from "@/liveblocks.config";
@@ -47,10 +48,10 @@ export default function ProjectCanvas() {
   const selectedShapeRef = useRef<String | null>("rectangle");
   const activeObjectRef = useRef<fabric.Object | null>(null);
   const canvasObjects = useStorage((root) => root.canvasObjects);
-  const layerStructure = useStorage((root) => root.layerStructure);
   const layersMap = useStorage((root) => root.layers);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isEditingRef = useRef(false);
+  const isPanModeRef = useRef<boolean>(false);
   const [layersInitialized, setLayersInitialized] = useState(false);
 
   const [elementAttributes, setElementAttributes] = useState<Attributes>({
@@ -67,24 +68,17 @@ export default function ProjectCanvas() {
     if (!object) return;
 
     const { objectId } = object;
+    console.log("==========syncShapeInStorage===================");
 
     const shapeData = object.toJSON();
     shapeData.objectId = objectId;
 
     const canvasObjects = storage.get("canvasObjects");
+    canvasObjects.delete(objectId); // Eliminar el objeto existente antes de agregar el nuevo
     canvasObjects.set(objectId, shapeData);
 
     // Intentar sincronizar el objeto con la estructura de capas si no existe ya
     // Esto ahora es seguro gracias a la verificación en syncNewObjectWithLayers
-    syncNewObjectWithLayers(storage, object);
-  }, []);
-
-  // Ya no necesitamos esta función separada, ya que syncShapeInStorage ya hace esto
-  // La mantenemos por compatibilidad pero está deprecada
-  const handleAddObjectToLayers = useMutation(({ storage }, object) => {
-    if (!object) return;
-    // Esto ya se hace en syncShapeInStorage y allí ya verificamos duplicados
-    // Así que no debería causar problemas
     syncNewObjectWithLayers(storage, object);
   }, []);
 
@@ -409,6 +403,23 @@ export default function ProjectCanvas() {
   const handleActiveElement = (elem: ActiveElement) => {
     setActiveElement(elem);
 
+    // Establecer el modo de desplazamiento cuando se selecciona "pan"
+    if (elem?.value === "pan") {
+      isPanModeRef.current = true;
+      // Cambiar el cursor para indicar modo de desplazamiento
+      if (fabricRef.current) {
+        fabricRef.current.defaultCursor = "grab";
+        fabricRef.current.hoverCursor = "grab";
+      }
+    } else {
+      isPanModeRef.current = false;
+      // Restaurar cursores predeterminados
+      if (fabricRef.current) {
+        fabricRef.current.defaultCursor = "default";
+        fabricRef.current.hoverCursor = "move";
+      }
+    }
+
     switch (elem?.value) {
       case "reset":
         deleteAllShapes();
@@ -575,45 +586,135 @@ export default function ProjectCanvas() {
   useEffect(() => {
     const canvas = initializeFabric({ canvasRef, fabricRef });
 
-    canvas.on("mouse:down", (options) => {
-      handleCanvasMouseDown({
-        options,
+    // Eventos de zoom con la rueda del ratón
+    canvas.on("mouse:wheel", (options) => {
+      handleCanvasZoom({
+        options: options as fabric.IEvent & { e: WheelEvent },
         canvas,
-        isDrawing,
-        shapeRef,
-        selectedShapeRef,
       });
+    });
+
+    // Configuración para prevenir el comportamiento predeterminado del botón central
+    const preventMiddleClickScroll = (e: MouseEvent) => {
+      if (e.button === 1) {
+        console.log("Botón medio presionado, evitando scroll.");
+        // Botón medio
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Añadir listener a nivel de documento para prevenir el scroll con botón medio
+    document.addEventListener("mousedown", preventMiddleClickScroll);
+
+    // Variables para el modo de desplazamiento
+    let isPanning = false;
+    let lastClientX = 0;
+    let lastClientY = 0;
+
+    // Eventos para desplazamiento (pan) y dibujo
+    canvas.on("mouse:down", (options) => {
+      const mouseEvent = options.e as MouseEvent;
+
+      // Si estamos en modo desplazamiento (herramienta Pan seleccionada)
+      if (isPanModeRef.current) {
+        isPanning = true;
+        canvas.selection = false; // deshabilitar selección durante pan
+        canvas.discardActiveObject(); // deseleccionar objetos si los hay
+        canvas.defaultCursor = "grabbing";
+        canvas.renderAll();
+
+        lastClientX = mouseEvent.clientX;
+        lastClientY = mouseEvent.clientY;
+
+        // Prevenir el comportamiento predeterminado
+        options.e.preventDefault();
+        options.e.stopPropagation();
+        return; // No procesar nada más en este evento
+      }
+      // Si no estamos en modo desplazamiento, manejar como mouse down normal
+      else if (mouseEvent.button === 0) {
+        // Solo para clic izquierdo
+        handleCanvasMouseDown({
+          options,
+          canvas,
+          isDrawing,
+          shapeRef,
+          selectedShapeRef,
+        });
+      }
     });
 
     canvas.on("mouse:move", (options) => {
-      handleCanvaseMouseMove({
-        options,
-        canvas,
-        isDrawing,
-        shapeRef,
-        selectedShapeRef,
-        syncShapeInStorage,
-      });
+      const mouseEvent = options.e as MouseEvent;
+
+      // Si estamos en modo desplazamiento activo
+      if (isPanning) {
+        const vpt = canvas.viewportTransform;
+        if (!vpt) return;
+
+        const deltaX = mouseEvent.clientX - lastClientX;
+        const deltaY = mouseEvent.clientY - lastClientY;
+
+        lastClientX = mouseEvent.clientX;
+        lastClientY = mouseEvent.clientY;
+
+        // Mover el viewport del canvas
+        vpt[4] += deltaX;
+        vpt[5] += deltaY;
+
+        // Renderizar el canvas con la nueva posición
+        canvas.requestRenderAll();
+
+        // Prevenir comportamiento predeterminado
+        options.e.preventDefault();
+        options.e.stopPropagation();
+      }
+      // Si no estamos en modo pan activo pero hay dibujo en progreso
+      else if (!isPanModeRef.current) {
+        handleCanvaseMouseMove({
+          options,
+          canvas,
+          isDrawing,
+          shapeRef,
+          selectedShapeRef,
+          syncShapeInStorage,
+        });
+      }
     });
 
     canvas.on("mouse:up", (options) => {
-      handleCanvasMouseUp({
-        canvas,
-        isDrawing,
-        shapeRef,
-        selectedShapeRef,
-        syncShapeInStorage,
-        setActiveElement,
-        activeObjectRef,
-      });
+      // Si estábamos en modo desplazamiento, finalizarlo
+      if (isPanning) {
+        isPanning = false;
+        canvas.selection = true; // rehabilitar selección
 
-      // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
-      // Si se acaba de crear un objeto, ya se sincronizó en handleCanvasMouseUp
-      // if (shapeRef.current && !isDrawing.current) {
-      //   handleAddObjectToLayers(shapeRef.current);
-      // }
+        // Mantener el cursor como "grab" mientras estemos en modo pan
+        if (isPanModeRef.current) {
+          canvas.defaultCursor = "grab";
+        } else {
+          canvas.defaultCursor = "default";
+        }
+
+        canvas.renderAll();
+        return;
+      }
+
+      // Si no estamos en modo desplazamiento, manejar como mouseup normal
+      if (!isPanModeRef.current) {
+        handleCanvasMouseUp({
+          canvas,
+          isDrawing,
+          shapeRef,
+          selectedShapeRef,
+          syncShapeInStorage,
+          setActiveElement,
+          activeObjectRef,
+        });
+      }
     });
 
+    // Resto de eventos como estaban antes
     canvas.on("object:modified", (options) => {
       handleCanvasObjectModified({
         options,
@@ -641,12 +742,6 @@ export default function ProjectCanvas() {
         options,
         syncShapeInStorage,
       });
-
-      // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
-      // Si se creó un path, ya se sincronizó en handlePathCreated
-      // if (options.path) {
-      //   handleAddObjectToLayers(options.path);
-      // }
     });
 
     window.addEventListener("resize", () => {
@@ -665,9 +760,11 @@ export default function ProjectCanvas() {
     });
 
     return () => {
+      // Limpiar eventos al desmontar
+      document.removeEventListener("mousedown", preventMiddleClickScroll);
       canvas.dispose();
     };
-  }, []); // Ya no dependemos de handleAddObjectToLayers
+  }, []);
 
   useEffect(() => {
     renderCanvas({

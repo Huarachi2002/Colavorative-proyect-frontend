@@ -3,7 +3,7 @@
 import DeleteProjectModal from "@/components/projects/DeleteProjectModal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { usersApi } from "@/lib/api";
+import { projectsApi, usersApi } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/routes";
 import { Project } from "@/types/type";
 import {
@@ -43,13 +43,20 @@ export default function DashboardPage() {
     try {
       // Eliminar el proyecto del almacenamiento local
       // TODO En producción: DELETE /api/projects/{projectId}
-      const projects = JSON.parse(localStorage.getItem("projects") || "[]");
+      const responseProjects = await projectsApi.delete(project.id);
+      console.log("Response:", responseProjects);
+      if (responseProjects.error) {
+        console.error(
+          "Error al eliminar el proyecto:",
+          responseProjects.error.message
+        );
+        return;
+      }
 
       const updatedProjects = projects.filter(
         (p: Project) => p.idRoom !== project?.idRoom
       );
 
-      localStorage.setItem("projects", JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
 
       setIsDeleteModalOpen(false);

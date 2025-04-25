@@ -53,26 +53,49 @@ export default function LeftSidebar({
 
   const toggleLayerVisibility = useMutation(
     ({ storage }, layerId: string) => {
+      console.log("============== toggleLayerVisibility ===========");
       // Obtener la capa directamente del mapa de capas
       const layersMap = storage.get("layers");
+      console.log("LayerMap", layersMap);
       const layer = layersMap.get(layerId);
+      console.log("layer", layer);
 
       if (layer) {
         const visible = !layer.visible;
-
+        console.log("layer.visible", layer.visible);
         // Actualizar la visibilidad de la capa
         layersMap.set(layerId, {
           ...layer,
           visible,
         });
 
+        for (const childId of layer.childrenIds || []) {
+          const childLayer = layersMap.get(childId);
+          if (childLayer) {
+            layersMap.set(childId, {
+              ...childLayer,
+              visible,
+            });
+          }
+        }
+
         // Si hay un canvas y un objeto asociado, actualizar su visibilidad
+        console.log("fabricRef.current", fabricRef.current);
         if (fabricRef.current) {
           const objectId = layer.objectId;
+          console.log("objectId", objectId);
           if (objectId) {
             const object = findObjectById(fabricRef.current, objectId);
+            console.log("object", object);
             if (object) {
               object.visible = visible;
+              if (object._objects) {
+                for (const child of object._objects) {
+                  console.log("child", child);
+                  child.visible = visible;
+                  syncShapeInStorage(child);
+                }
+              }
               fabricRef.current.renderAll();
 
               // Sincronizar cambios con otros usuarios
@@ -253,13 +276,19 @@ export default function LeftSidebar({
 
       // Actualizar el orden en el canvas
       if (fabricRef.current) {
-        updateCanvasOrderFromLayers(fabricRef.current, {
-          layerStructure: {
-            rootLayerIds: layerStructure.get("rootLayerIds"),
-            selectedLayerIds: layerStructure.get("selectedLayerIds"),
-          },
-          layersMap: storage.get("layers"),
-        });
+        // Agregamos un pequeño retraso para asegurar que React haya actualizado el estado
+        setTimeout(() => {
+          if (fabricRef.current) {
+            updateCanvasOrderFromLayers(fabricRef.current, {
+              layerStructure: {
+                rootLayerIds: layerStructure.get("rootLayerIds"),
+                selectedLayerIds: layerStructure.get("selectedLayerIds"),
+              },
+              layersMap: storage.get("layers"),
+            });
+            fabricRef.current.renderAll();
+          }
+        }, 0);
       }
     },
     [fabricRef]
@@ -309,13 +338,19 @@ export default function LeftSidebar({
 
       // Actualizar el orden en el canvas
       if (fabricRef.current) {
-        updateCanvasOrderFromLayers(fabricRef.current, {
-          layerStructure: {
-            rootLayerIds: layerStructure.get("rootLayerIds"),
-            selectedLayerIds: layerStructure.get("selectedLayerIds"),
-          },
-          layersMap: storage.get("layers"),
-        });
+        // Agregamos un pequeño retraso para asegurar que React haya actualizado el estado
+        setTimeout(() => {
+          if (fabricRef.current) {
+            updateCanvasOrderFromLayers(fabricRef.current, {
+              layerStructure: {
+                rootLayerIds: layerStructure.get("rootLayerIds"),
+                selectedLayerIds: layerStructure.get("selectedLayerIds"),
+              },
+              layersMap: storage.get("layers"),
+            });
+            fabricRef.current.renderAll();
+          }
+        }, 0);
       }
     },
     [fabricRef]
@@ -339,7 +374,7 @@ export default function LeftSidebar({
 
       // Verificar que todos los elementos seleccionados tienen objetos correspondientes en el canvas
       const objectsToGroup = [];
-      const validLayerIds = [];
+      const validLayerIds: any[] = [];
       const validObjectIds = new Set();
 
       if (fabricRef.current) {
@@ -521,7 +556,7 @@ export default function LeftSidebar({
 
       // CLAVE: Obtener la información del grupo antes de eliminarlo
       const groupObjectId = layer.objectId;
-      const groupObjectData = canvasObjects.get(groupObjectId);
+      const groupObjectData = canvasObjects.get(groupObjectId!);
 
       console.log(
         "Datos del grupo a desagrupar:",
@@ -656,7 +691,7 @@ export default function LeftSidebar({
               console.log("Recreando objeto en el canvas");
               fabric.util.enlivenObjects(
                 [childObjectData],
-                function (enlivenedObjects) {
+                function (enlivenedObjects: any[]) {
                   const obj = enlivenedObjects[0];
                   if (obj) {
                     obj.set({
@@ -695,12 +730,14 @@ export default function LeftSidebar({
   const deleteLayer = useMutation(
     ({ storage }, layerId: string) => {
       const layerStructure = storage.get("layerStructure");
+      const canvasObjects = storage.get("canvasObjects");
       const layersMap = storage.get("layers");
       const layer = layersMap.get(layerId);
-
+      console.log("======================== deleteLayer ====================");
       if (!layer) return;
 
       // Si es un grupo/contenedor, verificar si tiene hijos
+      console.log("Layer: ", layer);
       if (layer.type === "group" && (layer.childrenIds?.length || 0) > 0) {
         const confirmDelete = confirm(
           "Este contenedor tiene elementos. ¿Desea eliminar también todos los elementos contenidos?"
@@ -711,36 +748,50 @@ export default function LeftSidebar({
 
         // Si se confirma, eliminar recursivamente todos los hijos
         const deleteChildrenRecursively = (childrenIds: string[]) => {
+          console.log("Eliminando hijos recursivamente: ", childrenIds);
           for (const childId of childrenIds) {
+            console.log("Eliminando hijo: ", childId);
             const childLayer = layersMap.get(childId);
+
+            console.log("childLayer: ", childLayer);
             if (!childLayer) continue;
 
             // Si el hijo es un grupo, eliminar sus hijos primero
+            console.log("childLayer.type: ", childLayer.type);
+            console.log("childLayer.childrenIds: ", childLayer.childrenIds);
             if (childLayer.type === "group" && childLayer.childrenIds?.length) {
               deleteChildrenRecursively(childLayer.childrenIds);
             }
 
             // Eliminar el objeto del canvas si existe
+            console.log("childLayer.objectId: ", childLayer.objectId);
+            console.log("fabricRef.current: ", fabricRef.current);
             if (fabricRef.current && childLayer.objectId) {
               const object = findObjectById(
                 fabricRef.current,
                 childLayer.objectId
               );
+
+              console.log("object: ", object);
               if (object) {
                 fabricRef.current.remove(object);
-
+                console.log("Objeto eliminado del canvas");
                 // También eliminar del mapa de objetos del canvas
-                const canvasObjects = storage.get("canvasObjects");
                 canvasObjects.delete(childLayer.objectId);
+                console.log(
+                  "Objeto eliminado del mapa de objetos (Liveblocks)"
+                );
               }
             }
 
             // Eliminar la capa
+            console.log("Eliminando capa: ", childId);
             layersMap.delete(childId);
           }
         };
 
         // Eliminar todos los hijos recursivamente
+        console.log("Eliminando hijos de la capa: ", layer.childrenIds);
         deleteChildrenRecursively(layer.childrenIds);
       }
 
@@ -751,9 +802,14 @@ export default function LeftSidebar({
           fabricRef.current.remove(object);
           fabricRef.current.renderAll();
 
-          // También eliminar del mapa de objetos del canvas
-          const canvasObjects = storage.get("canvasObjects");
-          canvasObjects.delete(layer.objectId);
+          canvasObjects.delete(object.objectId);
+        } else {
+          // Si no hay objeto, eliminar del mapa de objetos de Liveblocks
+          console.log("layer.objectId: ", layer.objectId);
+          if (layer.objectId) {
+            console.log("Eliminando objeto del mapa de objetos (Liveblocks)");
+            canvasObjects.delete(layer.objectId);
+          }
         }
       }
 
@@ -768,6 +824,7 @@ export default function LeftSidebar({
         });
       } else {
         // Era hijo de otro grupo
+        console.log("Era hijo de otro grupo Layer: ", layersMap);
         for (const [parentId, parentLayer] of layersMap.entries()) {
           const childrenIds = parentLayer.childrenIds || [];
           if (childrenIds.includes(layerId)) {
@@ -778,6 +835,29 @@ export default function LeftSidebar({
             break;
           }
         }
+        console.log("LayerMap Before: ", layersMap);
+        const objectId = layer.objectId;
+        console.log("Era hijo de otro grupo object: ", canvasObjects);
+        console.log("El hijo objectId: ", objectId);
+        for (const [parentId, parentObject] of canvasObjects.entries()) {
+          const childrens = parentObject.objects || [];
+          // if (childrens.includes(objectId)) {
+          if (
+            childrens.some(
+              (childObject: any) => childObject.objectId === objectId
+            )
+          ) {
+            console.log("Era hijo de otro grupo object: ", parentObject);
+            canvasObjects.set(parentId, {
+              ...parentObject,
+              objects: childrens.filter(
+                (childObject: any) => childObject.objectId !== objectId
+              ),
+            });
+            break;
+          }
+        }
+        console.log("canvasObjects Before: ", canvasObjects);
       }
 
       // Actualizar la selección si esta capa estaba seleccionada
@@ -896,6 +976,7 @@ export default function LeftSidebar({
       // Encontrar dónde están las capas fuente y destino
       const rootLayerIds = layerStructure.get("rootLayerIds");
       const sourceInRoot = rootLayerIds.includes(sourceLayerId);
+      const targetInRoot = rootLayerIds.includes(targetLayerId);
 
       // Si el destino es un grupo, añadir el origen como hijo
       if (targetLayer && targetLayer.type === "group") {
@@ -954,20 +1035,86 @@ export default function LeftSidebar({
         }
       } else {
         // Si el destino no es un grupo, reordenar dentro del mismo nivel
-        // Código existente para reordenar...
+
+        // Determinar si las capas están en el mismo nivel
+        if (sourceInRoot && targetInRoot) {
+          // Ambas están en la raíz, reordenar dentro de rootLayerIds
+          const newRootLayerIds = [
+            ...rootLayerIds.filter((id) => id !== sourceLayerId),
+          ];
+          const targetIndex = newRootLayerIds.indexOf(targetLayerId);
+
+          // Insertar la capa fuente antes de la capa destino
+          newRootLayerIds.splice(targetIndex, 0, sourceLayerId);
+
+          // Actualizar la estructura de capas
+          layerStructure.update({
+            rootLayerIds: newRootLayerIds,
+          });
+        } else {
+          // Buscar el grupo padre del destino
+          for (const [parentId, parentLayer] of layersMap.entries()) {
+            const childrenIds = parentLayer.childrenIds || [];
+            if (childrenIds.includes(targetLayerId)) {
+              // Primero, eliminar la fuente de su ubicación actual
+              if (sourceInRoot) {
+                // Si la fuente está en la raíz, eliminarla
+                layerStructure.update({
+                  rootLayerIds: rootLayerIds.filter(
+                    (id) => id !== sourceLayerId
+                  ),
+                });
+              } else {
+                // Si la fuente está en un grupo, buscar y eliminarla
+                for (const [
+                  srcParentId,
+                  srcParentLayer,
+                ] of layersMap.entries()) {
+                  const srcChildIds = srcParentLayer.childrenIds || [];
+                  if (srcChildIds.includes(sourceLayerId)) {
+                    layersMap.set(srcParentId, {
+                      ...srcParentLayer,
+                      childrenIds: srcChildIds.filter(
+                        (id) => id !== sourceLayerId
+                      ),
+                    });
+                    break;
+                  }
+                }
+              }
+
+              // Ahora añadir la fuente al mismo grupo que el destino, justo antes del destino
+              const newChildrenIds = [...childrenIds];
+              const targetIndex = newChildrenIds.indexOf(targetLayerId);
+              newChildrenIds.splice(targetIndex, 0, sourceLayerId);
+
+              layersMap.set(parentId, {
+                ...parentLayer,
+                childrenIds: newChildrenIds,
+              });
+              break;
+            }
+          }
+        }
       }
 
       setDraggedLayer(null);
 
       // Actualizar el orden en el canvas
       if (fabricRef.current) {
-        updateCanvasOrderFromLayers(fabricRef.current, {
-          layerStructure: {
-            rootLayerIds: layerStructure.get("rootLayerIds"),
-            selectedLayerIds: layerStructure.get("selectedLayerIds"),
-          },
-          layersMap,
-        });
+        // Agregamos un pequeño retraso para asegurar que React haya actualizado el estado
+        setTimeout(() => {
+          if (fabricRef.current) {
+            updateCanvasOrderFromLayers(fabricRef.current, {
+              layerStructure: {
+                rootLayerIds: layerStructure.get("rootLayerIds"),
+                selectedLayerIds: layerStructure.get("selectedLayerIds"),
+              },
+              layersMap: storage.get("layers"),
+            });
+            fabricRef.current.renderAll();
+          }
+        }, 0);
       }
     },
     [fabricRef, syncShapeInStorage]

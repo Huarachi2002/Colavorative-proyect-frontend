@@ -50,6 +50,11 @@ export const navElements = [
     name: "Text",
   },
   {
+    icon: "/assets/hand.svg",
+    value: "pan",
+    name: "Pan",
+  },
+  {
     icon: "/assets/delete.svg",
     value: "delete",
     name: "Delete",
