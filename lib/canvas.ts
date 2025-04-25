@@ -191,6 +191,7 @@ export const handleCanvasMouseUp = ({
   }
 };
 
+// Función para manejar modificación de objetos (movimiento, redimensionado, etc)
 export const handleCanvasObjectModified = ({
   options,
   syncShapeInStorage,
@@ -198,10 +199,50 @@ export const handleCanvasObjectModified = ({
   const target = options.target;
   if (!target) return;
 
-  if (target?.type == "activeSelection") {
+  if (target?.type === "activeSelection") {
+    // Para selección múltiple
   } else {
+    // Si es un objeto individual
     syncShapeInStorage(target);
+
+    // Si es un grupo, actualizar la posición de todos los objetos dentro del grupo
+    if (target.type === "group" && target instanceof fabric.Group) {
+      const groupObjects = target.getObjects();
+      // La posición del grupo ha cambiado, actualizar las posiciones relativas de los objetos
+      groupObjects.forEach((obj) => {
+        // Los objetos dentro del grupo ya tienen posiciones relativas al grupo
+        // No necesitamos hacer nada más aquí, ya que Fabric.js maneja esto internamente
+      });
+    }
+
+    // Si el objeto pertenece a un grupo (verificamos usando la propiedad _groupId)
+    else if ((target as any)._groupId) {
+      const canvas = target.canvas;
+      if (canvas) {
+        // Buscar el grupo al que pertenece este objeto
+        const groupId = (target as any)._groupId;
+        const group = findObjectById(canvas, groupId);
+
+        if (group && group instanceof fabric.Group) {
+          // El grupo necesita actualizarse cuando uno de sus objetos cambia
+          // Podemos forzar una actualización del grupo aquí
+          group.setCoords();
+          syncShapeInStorage(group);
+        }
+      }
+    }
   }
+};
+
+// Función auxiliar para encontrar un objeto por ID
+export const findObjectById = (
+  canvas: fabric.Canvas,
+  objectId: string
+): fabric.Object | null => {
+  return (
+    canvas.getObjects().find((obj) => (obj as any).objectId === objectId) ||
+    null
+  );
 };
 
 export const handlePathCreated = ({
@@ -313,24 +354,134 @@ export const renderCanvas = ({
   canvasObjects,
   activeObjectRef,
 }: RenderCanvas) => {
+  // Limpiar el canvas actual
   fabricRef.current?.clear();
 
+  // Crear un mapa para almacenar todos los objetos creados por su ID
+  const createdObjects = new Map<string, fabric.Object>();
+  // Mapeo de objetos que pertenecen a grupos
+  const groupChildren = new Map<string, string[]>();
+  // Objetos de grupo que necesitamos procesar
+  const groupsToProcess = new Map<string, any>();
+
+  // Primera pasada: identificar todos los grupos y sus hijos
   Array.from(canvasObjects, ([objectId, objectData]) => {
+    // Si es un grupo con objetos, registrar sus hijos
+    if (
+      objectData.type === "group" &&
+      objectData.objects &&
+      objectData.objects.length > 0
+    ) {
+      groupsToProcess.set(objectId, objectData);
+      groupChildren.set(objectId, []);
+    }
+
+    // Si este objeto está en un grupo (tiene _groupId), registrarlo
+    if (objectData._groupId) {
+      if (!groupChildren.has(objectData._groupId)) {
+        groupChildren.set(objectData._groupId, []);
+      }
+      groupChildren.get(objectData._groupId)?.push(objectId);
+    }
+  });
+
+  // Segunda pasada: crear todos los objetos que no son grupos
+  Array.from(canvasObjects, ([objectId, objectData]) => {
+    // Saltar los grupos por ahora, los procesaremos después
+    if (objectData.type === "group") {
+      return;
+    }
+
+    // También saltar objetos que pertenecen a grupos, los añadiremos como parte del grupo
+    if (objectData._groupId && groupChildren.has(objectData._groupId)) {
+      return;
+    }
+
+    // Crear el objeto normal
     fabric.util.enlivenObjects(
       [objectData],
       (enlivenedObjects: fabric.Object[]) => {
-        enlivenedObjects.forEach((enlivenedObj) => {
-          if (activeObjectRef.current?.objectId === objectId) {
-            fabricRef.current?.setActiveObject(enlivenedObj);
-          }
+        enlivenedObjects.forEach((obj) => {
+          // Guardar referencia al objeto creado
+          createdObjects.set(objectId, obj);
 
-          fabricRef.current?.add(enlivenedObj);
+          // Añadir al canvas los objetos que no pertenecen a grupos
+          if (!objectData._groupId) {
+            if (activeObjectRef.current?.objectId === objectId) {
+              fabricRef.current?.setActiveObject(obj);
+            }
+            fabricRef.current?.add(obj);
+          }
         });
       },
       "fabric"
     );
   });
 
+  // Tercera pasada: crear los objetos de los grupos
+  groupsToProcess.forEach((groupData, groupId) => {
+    // Si el grupo tiene objetos definidos en su propiedad 'objects'
+    if (groupData.objects && groupData.objects.length > 0) {
+      // Crear objetos desde la definición del grupo
+      const groupObjects: fabric.Object[] = [];
+
+      Promise.all(
+        groupData.objects.map((objData: any) => {
+          return new Promise<fabric.Object>((resolve) => {
+            const objId =
+              objData.objectId ||
+              `${groupId}-child-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+            fabric.util.enlivenObjects(
+              [objData],
+              (enlivenedObjects: fabric.Object[]) => {
+                const obj = enlivenedObjects[0];
+                // Asegurar que el objeto tenga un ID
+                (obj as any).objectId = objId;
+                // Marcar como parte del grupo
+                (obj as any)._groupId = groupId;
+                // Asegurar que el objeto sea visible dentro del grupo
+                obj.visible = true;
+
+                groupObjects.push(obj);
+                resolve(obj);
+              },
+              "fabric"
+            );
+          });
+        })
+      ).then(() => {
+        // Crear el grupo con estos objetos
+        const options = {
+          left: groupData.left || 0,
+          top: groupData.top || 0,
+          width: groupData.width,
+          height: groupData.height,
+          angle: groupData.angle || 0,
+          scaleX: groupData.scaleX || 1,
+          scaleY: groupData.scaleY || 1,
+          objectId: groupId,
+          visible: groupData.visible !== false,
+        };
+
+        const group = new fabric.Group(groupObjects, options);
+
+        // Asegurarnos que el grupo sea visible
+        group.visible = true;
+
+        // Añadir el grupo al canvas
+        fabricRef.current?.add(group);
+        createdObjects.set(groupId, group);
+
+        // Si este era el objeto activo, seleccionarlo
+        if (activeObjectRef.current?.objectId === groupId) {
+          fabricRef.current?.setActiveObject(group);
+        }
+      });
+    }
+  });
+
+  // Renderizar el canvas
   fabricRef.current?.renderAll();
 };
 

@@ -192,6 +192,12 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ username, email, password }),
     }),
+
+  forgotPassword: (email: string) =>
+    fetchApi("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
 };
 
 export const projectsApi = {
@@ -302,10 +308,7 @@ export const usersApi = {
       body: JSON.stringify(data),
     }),
 
-  updatePassword: (
-    id: string,
-    data: { password: string; newPassword: string }
-  ) =>
+  updatePassword: (id: string, data: { password: string; newPass: string }) =>
     fetchApi(`/user/password/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),

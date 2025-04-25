@@ -129,14 +129,6 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
     };
   }, [updateMyPresence]);
 
-  const setReactions = useCallback((reaction: string) => {
-    setcursorState({
-      mode: CursorMode.Reaction,
-      reaction,
-      isPressed: false,
-    });
-  }, []);
-
   return (
     <ContextMenu>
       <ContextMenuTrigger

@@ -89,7 +89,7 @@ export function SignupForm({ onSubmit, isLoading }: SignupFormProps) {
         {errors.name && <p className='text-sm text-red-500'>{errors.name}</p>}
       </div>
       <div className='space-y-2'>
-        <label htmlFor='name'>Correo Electronico</label>
+        <label htmlFor='email'>Correo Electronico</label>
         <Input
           id='email'
           type='email'
@@ -97,7 +97,7 @@ export function SignupForm({ onSubmit, isLoading }: SignupFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
-          className={errors.name ? "border-red-500" : ""}
+          className={errors.email ? "border-red-500" : ""}
         />
         {errors.email && <p className='text-sm text-red-500'>{errors.email}</p>}
       </div>

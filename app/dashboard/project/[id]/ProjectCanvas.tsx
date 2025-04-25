@@ -47,8 +47,11 @@ export default function ProjectCanvas() {
   const selectedShapeRef = useRef<String | null>("rectangle");
   const activeObjectRef = useRef<fabric.Object | null>(null);
   const canvasObjects = useStorage((root) => root.canvasObjects);
+  const layerStructure = useStorage((root) => root.layerStructure);
+  const layersMap = useStorage((root) => root.layers);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isEditingRef = useRef(false);
+  const [layersInitialized, setLayersInitialized] = useState(false);
 
   const [elementAttributes, setElementAttributes] = useState<Attributes>({
     width: "",
@@ -90,6 +93,233 @@ export default function ProjectCanvas() {
     value: "",
     icon: "",
   });
+
+  // Función para asegurarse de que la estructura de capas esté inicializada y sincronizada con los objetos del canvas
+  const ensureLayersInitialized = useMutation(({ storage }) => {
+    const canvasObjects = storage.get("canvasObjects");
+    const layerStructure = storage.get("layerStructure");
+    const layersMap = storage.get("layers");
+
+    // Si no hay objetos en el canvas, no hay nada que inicializar
+    if (!canvasObjects || canvasObjects.size === 0) return false;
+
+    // Mapear los grupos y sus hijos para restaurar las relaciones luego
+    const groupRelations = new Map();
+
+    // Identificar objetos que pertenecen a grupos primero
+    for (const [objectId, objectData] of canvasObjects.entries()) {
+      if (objectData._groupId) {
+        if (!groupRelations.has(objectData._groupId)) {
+          groupRelations.set(objectData._groupId, []);
+        }
+        groupRelations.get(objectData._groupId).push(objectId);
+      }
+    }
+
+    // Verificar si ya hay capas definidas
+    if (
+      layerStructure &&
+      layerStructure.rootLayerIds &&
+      layerStructure.rootLayerIds.length > 0
+    ) {
+      let childrenMappedCorrectly = true;
+
+      // Verificar si todas las capas tienen las relaciones de hijos correctas
+      for (const [layerId, layer] of layersMap.entries()) {
+        // Si es un grupo, verificar si tiene los hijos correctos
+        if (layer.type === "group" && layer.objectId) {
+          const expectedChildren = groupRelations.get(layer.objectId) || [];
+
+          // Encontrar las capas correspondientes a estos objectIds
+          const childLayerIds = [];
+          for (const childObjectId of expectedChildren) {
+            for (const [childLayerId, childLayer] of layersMap.entries()) {
+              if (childLayer.objectId === childObjectId) {
+                childLayerIds.push(childLayerId);
+                break;
+              }
+            }
+          }
+
+          // Si los hijos no coinciden, necesitamos reconstruir
+          if (
+            childLayerIds.length !== expectedChildren.length ||
+            !layer.childrenIds ||
+            layer.childrenIds.length !== childLayerIds.length
+          ) {
+            childrenMappedCorrectly = false;
+            break;
+          }
+
+          // Verificar que todos los IDs de hijo esperados estén presentes
+          for (const childId of childLayerIds) {
+            if (!layer.childrenIds || !layer.childrenIds.includes(childId)) {
+              childrenMappedCorrectly = false;
+              break;
+            }
+          }
+
+          if (!childrenMappedCorrectly) break;
+        }
+      }
+
+      // Si todas las relaciones están correctas, no hacemos nada
+      if (childrenMappedCorrectly) {
+        console.log(
+          "Las relaciones entre grupos y elementos están correctas, no se requiere reconstrucción"
+        );
+        return true;
+      }
+
+      console.log(
+        "Se detectaron problemas en las relaciones entre grupos y elementos, reconstruyendo..."
+      );
+    }
+
+    // Si llegamos aquí, necesitamos reconstruir la estructura de capas
+
+    // Creamos un mapa de los nombres personalizados actuales para preservarlos
+    const customNames = new Map();
+    for (const [layerId, layer] of layersMap.entries()) {
+      if (layer.objectId) {
+        customNames.set(layer.objectId, layer.name);
+      }
+    }
+
+    // Limpiar la estructura de capas existente
+    const rootLayerIds: string[] = [];
+
+    // Eliminar cualquier capa existente
+    for (const [key] of layersMap.entries()) {
+      layersMap.delete(key);
+    }
+
+    // Primero, crear capas para todos los objetos
+    const objectIdToLayerId = new Map();
+
+    for (const [objectId, objectData] of canvasObjects.entries()) {
+      // No crear capas para objetos que son parte de un grupo todavía
+      // Lo haremos después para asegurarnos de que mantengan la relación correcta
+      if (objectData._groupId) {
+        continue;
+      }
+
+      const type = objectData.type || "unknown";
+      const layerId = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Usar el nombre personalizado si existe, o crear uno nuevo basado en el tipo
+      const name =
+        customNames.get(objectId) ||
+        (type === "i-text" && objectData.text
+          ? `Texto: ${objectData.text.substring(0, 15)}`
+          : type.charAt(0).toUpperCase() + type.slice(1));
+
+      const newLayer = {
+        id: layerId,
+        name,
+        type,
+        visible: objectData.visible !== false,
+        locked: false,
+        childrenIds: [],
+        objectId,
+      };
+
+      layersMap.set(layerId, newLayer);
+      objectIdToLayerId.set(objectId, layerId);
+
+      // Si no es un objeto de grupo, añadirlo directamente a la raíz
+      if (type !== "group") {
+        rootLayerIds.push(layerId);
+      }
+    }
+
+    // Segundo paso: procesar grupos y sus relaciones
+    for (const [objectId, objectData] of canvasObjects.entries()) {
+      // Solo procesar objetos de tipo grupo
+      if (objectData.type !== "group") {
+        continue;
+      }
+
+      const layerId = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const name = customNames.get(objectId) || "Grupo";
+
+      // Encontrar los objetos que pertenecen a este grupo
+      const childrenObjectIds = groupRelations.get(objectId) || [];
+      const childrenLayerIds: string[] = [];
+
+      // Crear capas para los hijos si no existen todavía
+      for (const childObjectId of childrenObjectIds) {
+        let childLayerId = objectIdToLayerId.get(childObjectId);
+
+        // Si no existe una capa para este objeto hijo, crearla
+        if (!childLayerId) {
+          const childData = canvasObjects.get(childObjectId);
+          if (childData) {
+            childLayerId = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const childName =
+              customNames.get(childObjectId) ||
+              (childData.type === "i-text" && childData.text
+                ? `Texto: ${childData.text.substring(0, 15)}`
+                : childData.type.charAt(0).toUpperCase() +
+                  childData.type.slice(1));
+
+            const childLayer = {
+              id: childLayerId,
+              name: childName,
+              type: childData.type || "unknown",
+              visible: childData.visible !== false,
+              locked: false,
+              childrenIds: [],
+              objectId: childObjectId,
+            };
+
+            layersMap.set(childLayerId, childLayer);
+            objectIdToLayerId.set(childObjectId, childLayerId);
+          }
+        }
+
+        // Si encontramos un ID de capa válido, añadirlo a los hijos del grupo
+        if (childLayerId) {
+          childrenLayerIds.push(childLayerId);
+
+          // Eliminar este hijo de la raíz si estaba allí
+          const rootIndex = rootLayerIds.indexOf(childLayerId);
+          if (rootIndex !== -1) {
+            rootLayerIds.splice(rootIndex, 1);
+          }
+        }
+      }
+
+      // Crear la capa de grupo con sus hijos
+      const groupLayer = {
+        id: layerId,
+        name,
+        type: "group",
+        visible: objectData.visible !== false,
+        locked: false,
+        expanded: true,
+        childrenIds: childrenLayerIds,
+        objectId,
+      };
+
+      layersMap.set(layerId, groupLayer);
+      objectIdToLayerId.set(objectId, layerId);
+
+      // Añadir el grupo a la raíz
+      rootLayerIds.push(layerId);
+    }
+
+    // Actualizar la estructura de capas
+    layerStructure.update({
+      rootLayerIds,
+      selectedLayerIds: [],
+    });
+
+    console.log(
+      "Estructura de capas reconstruida correctamente con las relaciones de grupo preservadas"
+    );
+    return true;
+  }, []);
 
   const deleteAllShapes = useMutation(({ storage }) => {
     const canvasObjects = storage.get("canvasObjects");
@@ -445,7 +675,65 @@ export default function ProjectCanvas() {
       canvasObjects,
       activeObjectRef,
     });
-  }, [canvasObjects]);
+
+    // Después de renderizar el canvas, necesitamos reconstruir los grupos
+    if (fabricRef.current && canvasObjects && layersMap) {
+      // Primero encontramos todas las capas de tipo grupo
+      const groupLayers: Array<{ id: string; layerData: any }> = [];
+      for (const [layerId, layer] of layersMap.entries()) {
+        if (layer.type === "group" && layer.objectId) {
+          groupLayers.push({ id: layerId, layerData: layer });
+        }
+      }
+
+      // Luego, para cada grupo, configuramos los objetos que contiene
+      // para que sepan a qué grupo pertenecen
+      groupLayers.forEach(({ id, layerData }) => {
+        if (!layerData.childrenIds || layerData.childrenIds.length === 0)
+          return;
+
+        // Buscar el objeto de grupo en el canvas
+        const groupObj = fabricRef
+          .current!.getObjects()
+          .find((obj) => (obj as any).objectId === layerData.objectId);
+
+        if (groupObj && groupObj instanceof fabric.Group) {
+          // Para cada hijo, marcar su relación con este grupo
+          layerData.childrenIds.forEach((childId: string) => {
+            const childLayer = layersMap.get(childId);
+            if (childLayer && childLayer.objectId) {
+              // Encontrar el objeto hijo
+              const childObj = fabricRef
+                .current!.getObjects()
+                .find((obj) => (obj as any).objectId === childLayer.objectId);
+
+              if (childObj) {
+                // Establecer relación entre el hijo y el grupo
+                (childObj as any)._groupId = layerData.objectId;
+
+                // Los objetos en grupos no deberían estar visibles directamente
+                childObj.visible = false;
+              }
+            }
+          });
+        }
+      });
+
+      // Renderizar nuevamente el canvas
+      fabricRef.current.renderAll();
+    }
+  }, [canvasObjects, layersMap]);
+
+  // Nuevo efecto para inicializar y sincronizar las capas cuando se cargan los objetos del canvas
+  useEffect(() => {
+    if (canvasObjects && !layersInitialized) {
+      // Solo tratamos de inicializar una vez que tenemos objetos del canvas
+      if (canvasObjects.size > 0) {
+        ensureLayersInitialized();
+        setLayersInitialized(true);
+      }
+    }
+  }, [canvasObjects, layersInitialized, ensureLayersInitialized]);
 
   return (
     <main className='h-screen overflow-hidden'>
@@ -465,9 +753,6 @@ export default function ProjectCanvas() {
         }}
       />
       <section className='flex h-full flex-row'>
-        {/* <LeftSidebar
-          allShapes={canvasObjects ? Array.from(canvasObjects) : []}
-        /> */}
         <LeftSidebar
           fabricRef={fabricRef}
           activeObjectRef={activeObjectRef}

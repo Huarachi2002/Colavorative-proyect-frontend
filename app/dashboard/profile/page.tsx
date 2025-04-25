@@ -84,8 +84,10 @@ export default function ProfilePage() {
     try {
       const response = await usersApi.updatePassword(user!.id, {
         password: currentPassword,
-        newPassword,
+        newPass: newPassword,
       });
+
+      console.log("Response Change Password:", response);
 
       if (response.error) {
         console.error("Error al actualizar la contraseña:", response.error);
