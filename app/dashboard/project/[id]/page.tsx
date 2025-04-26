@@ -15,6 +15,7 @@ export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const [message, setMessage] = useState("");
   const [access, setAccess] = useState<boolean>(true);
   // Extraer id como string, con manejo de casos donde podría ser un array
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
@@ -28,12 +29,20 @@ export default function ProjectPage() {
           user!.id
         );
         console.log("Response validateJoinProject:", response);
+
         if (response.error) {
           console.error("Error al validar el proyecto:", response.error);
           return;
         }
 
+        if (response.data.statusCode === 404) {
+          setMessage("El proyecto no existe");
+          setAccess(false);
+          return;
+        }
+
         if (!response.data.data) {
+          setMessage("No tienes acceso a este proyecto");
           setAccess(false);
         }
       } catch (error) {
@@ -46,10 +55,7 @@ export default function ProjectPage() {
 
   if (!access) {
     return (
-      <AccessDenied
-        message='No tienes acceso a este proyecto'
-        handleOnClick={() => router.back()}
-      />
+      <AccessDenied message={message} handleOnClick={() => router.back()} />
     );
   }
 

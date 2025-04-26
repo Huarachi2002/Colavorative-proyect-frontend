@@ -16,6 +16,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { toast } from "sonner";
 
 interface LeftSidebarProps {
   fabricRef: React.MutableRefObject<fabric.Canvas | null>;
@@ -59,6 +60,8 @@ export default function LeftSidebar({
       console.log("LayerMap", layersMap);
       const layer = layersMap.get(layerId);
       console.log("layer", layer);
+      const canvasObjects = storage.get("canvasObjects");
+      console.log("canvasObjects", canvasObjects);
 
       if (layer) {
         const visible = !layer.visible;
@@ -85,21 +88,33 @@ export default function LeftSidebar({
           const objectId = layer.objectId;
           console.log("objectId", objectId);
           if (objectId) {
-            const object = findObjectById(fabricRef.current, objectId);
-            console.log("object", object);
-            if (object) {
-              object.visible = visible;
-              if (object._objects) {
-                for (const child of object._objects) {
+            const groupObjectData = canvasObjects.get(objectId!);
+            console.log("groupObjectData", groupObjectData);
+            if (groupObjectData) {
+              groupObjectData.visible = visible;
+              if (groupObjectData.objects) {
+                for (const child of groupObjectData.objects) {
                   console.log("child", child);
                   child.visible = visible;
+                  // Actualizar la visibilidad de los objetos hijos en el canvas
+                  // Find the child object in the canvas and update its visibility
+                  if (fabricRef.current) {
+                    const childObject = fabricRef.current
+                      .getObjects()
+                      .find((obj) => (obj as any).objectId === child.objectId);
+                    if (childObject) {
+                      childObject.visible = visible;
+                    }
+                  }
                   syncShapeInStorage(child);
                 }
               }
-              fabricRef.current.renderAll();
+              canvasObjects.set(objectId, groupObjectData);
+              // fabricRef.current.renderAll();
+              fabricRef.current.requestRenderAll();
 
               // Sincronizar cambios con otros usuarios
-              syncShapeInStorage(object);
+              syncShapeInStorage(groupObjectData);
             }
           }
         }
@@ -361,10 +376,11 @@ export default function LeftSidebar({
       const layerStructure = storage.get("layerStructure");
       const selectedLayerIds = layerStructure.get("selectedLayerIds");
       const layersMap = storage.get("layers");
+      const canvasObjects = storage.get("canvasObjects");
 
       // Necesitamos al menos 2 capas seleccionadas para crear un grupo
       if (selectedLayerIds.length < 2) {
-        alert("Selecciona al menos 2 elementos para agrupar");
+        toast.warning("Selecciona al menos 2 elementos para agrupar");
         return;
       }
 
@@ -395,7 +411,9 @@ export default function LeftSidebar({
 
         // Si no hay suficientes objetos válidos, no podemos crear un grupo
         if (objectsToGroup.length < 2) {
-          alert("No se encontraron suficientes objetos válidos para agrupar");
+          toast.warning(
+            "No se encontraron suficientes objetos válidos para agrupar"
+          );
           return;
         }
       } else {
@@ -431,7 +449,7 @@ export default function LeftSidebar({
         selectedLayerIds: [groupId], // Seleccionar el nuevo grupo
       });
 
-      // Si estamos usando Fabric.js, también debemos agrupar los objetos
+      // Agrupar los objetos en el canvas frabic.js
       if (fabricRef.current && objectsToGroup.length >= 2) {
         // Primero deseleccionamos cualquier objeto seleccionado actualmente
         fabricRef.current.discardActiveObject();
@@ -443,17 +461,21 @@ export default function LeftSidebar({
 
         // Lo convertimos en un grupo permanente
         const group = selection.toGroup();
+        console.log("Grupo creado:", group);
         group.set("objectId", objectId);
 
-        // IMPORTANTE: Los objetos dentro del grupo deben permanecer visibles
+        //! IMPORTANTE: Los objetos dentro del grupo deben permanecer visibles
         // pero solo cuando están en el grupo (no como objetos individuales)
+        console.log("Objetos a agrupar:", objectsToGroup);
         objectsToGroup.forEach((obj) => {
           // Guardar la visibilidad original
+          console.log("Objeto a agrupar:", obj);
           (obj as any)._originalVisible = obj.visible;
           obj.visible = true; // Los objetos en el grupo deben estar visibles
           // Marcar que este objeto ahora es parte de un grupo
           (obj as any)._groupId = objectId;
         });
+        console.log("Objetos después de agrupar:", objectsToGroup);
 
         // Asegurarnos de que el grupo sea visible
         group.visible = true;
@@ -463,19 +485,26 @@ export default function LeftSidebar({
         fabricRef.current.requestRenderAll();
 
         // Añadir el nuevo grupo al almacenamiento
-        const canvasObjects = storage.get("canvasObjects");
         const groupData = group.toObject(["objectId"]);
+        console.log("Datos del grupo:", groupData);
+        console.log("canvasObjects After", canvasObjects);
         canvasObjects.set(objectId, groupData);
+        console.log("canvasObjects Before", canvasObjects);
 
         // Asegurar que los objetos individuales estén correctamente
         // asociados con el grupo en Liveblocks
         objectsToGroup.forEach((obj) => {
+          console.log("Actualizando objeto en canvasObjects:", obj);
           const objId = (obj as any).objectId;
+          console.log("objId", objId);
           if (objId) {
             const objData = canvasObjects.get(objId);
+            console.log("objData Before", objData);
             if (objData) {
-              objData._groupId = objectId;
-              canvasObjects.set(objId, objData);
+              // objData._groupId = objectId;
+              console.log("Eliminando objeto del canvasObjects:", objId);
+              canvasObjects.delete(objId);
+              console.log("canvasObjects: ", canvasObjects);
             }
           }
         });
@@ -494,7 +523,7 @@ export default function LeftSidebar({
 
       // Solo podemos desagrupar si hay una capa seleccionada
       if (selectedLayerIds.length !== 1) {
-        alert("Selecciona un grupo para desagrupar");
+        toast.warning("Selecciona un grupo para desagrupar");
         return;
       }
 
@@ -503,19 +532,21 @@ export default function LeftSidebar({
 
       // Solo podemos desagrupar grupos
       if (!layer || layer.type !== "group") {
-        alert("El elemento seleccionado no es un grupo");
+        toast.warning("El elemento seleccionado no es un grupo");
         return;
       }
 
       const childrenIds = layer.childrenIds || [];
       if (childrenIds.length === 0) {
-        alert("Este grupo no contiene elementos");
+        toast.warning("Este grupo no contiene elementos");
         return;
       }
 
       // Actualizar la estructura para mover los hijos a la raíz
       const rootLayerIds = layerStructure.get("rootLayerIds");
+      console.log("rootLayerIds", rootLayerIds);
       const rootIndex = rootLayerIds.indexOf(layerId);
+      console.log("rootIndex", rootIndex);
 
       if (rootIndex !== -1) {
         // El grupo estaba en la raíz
@@ -525,29 +556,37 @@ export default function LeftSidebar({
           ...rootLayerIds.slice(rootIndex + 1),
         ];
 
+        console.log("LayerStructure Before", layerStructure);
+        console.log("newRootLayerIds", newRootLayerIds);
+        console.log("childrenIds", childrenIds);
         layerStructure.update({
           rootLayerIds: newRootLayerIds,
           selectedLayerIds: childrenIds, // Seleccionar los hijos
         });
-        console.log("Capas hijas movidas a la raíz");
+        console.log("LayerStructure After", layerStructure);
       } else {
         // El grupo era hijo de otro grupo
+        console.log("Era hijo de otro grupo Layer: ", layersMap);
         for (const [parentId, parentLayer] of layersMap.entries()) {
           const parentChildrenIds = parentLayer.childrenIds || [];
+          console.log("parentChildrenIds", parentChildrenIds);
           const groupIndex = parentChildrenIds.indexOf(layerId);
-
+          console.log("groupIndex", groupIndex);
           if (groupIndex !== -1) {
             // Reemplazar el grupo con sus hijos en el padre
+            console.log("groupIndex childrenIds", childrenIds);
             const newParentChildrenIds = [
               ...parentChildrenIds.slice(0, groupIndex),
               ...childrenIds,
               ...parentChildrenIds.slice(groupIndex + 1),
             ];
-
+            console.log("newParentChildrenIds", newParentChildrenIds);
+            console.log("LayerMap Before", layersMap);
             layersMap.set(parentId, {
               ...parentLayer,
               childrenIds: newParentChildrenIds,
             });
+            console.log("LayerMap After", layersMap);
             console.log("Capas hijas movidas al grupo padre");
             break;
           }
@@ -556,7 +595,9 @@ export default function LeftSidebar({
 
       // CLAVE: Obtener la información del grupo antes de eliminarlo
       const groupObjectId = layer.objectId;
+      console.log("groupObjectId", groupObjectId);
       const groupObjectData = canvasObjects.get(groupObjectId!);
+      console.log("groupObjectData", groupObjectData);
 
       console.log(
         "Datos del grupo a desagrupar:",
@@ -576,139 +617,112 @@ export default function LeftSidebar({
             left: groupObjectData.left || 0,
             top: groupObjectData.top || 0,
           };
+          console.log("groupPosition", groupPosition);
           groupTransforms = {
             scaleX: groupObjectData.scaleX || 1,
             scaleY: groupObjectData.scaleY || 1,
             angle: groupObjectData.angle || 0,
           };
+          console.log("groupTransforms", groupTransforms);
         }
 
         // Buscar el grupo en el canvas (puede que ya no esté)
         const fabricGroup = findObjectById(fabricRef.current, groupObjectId);
+        console.log("fabricGroup", fabricGroup);
+
         if (fabricGroup && fabricGroup instanceof fabric.Group) {
           // Si encontramos el grupo en el canvas, usamos sus valores actuales
           groupMatrix = fabricGroup.calcTransformMatrix();
+          console.log("groupMatrix", groupMatrix);
           groupPosition = {
             left: fabricGroup.left || 0,
             top: fabricGroup.top || 0,
           };
+          console.log("groupPosition", groupPosition);
           groupTransforms = {
             scaleX: fabricGroup.scaleX || 1,
             scaleY: fabricGroup.scaleY || 1,
             angle: fabricGroup.angle || 0,
           };
+          console.log("groupTransforms", groupTransforms);
 
           // Eliminar el grupo del canvas
+          console.log("Eliminando grupo del canvas:", fabricGroup);
+          // Antes de eliminar deberia de volver a tomar los objetos hijos y
+          // crearlos de nuevo en mi fabricRef.current
           fabricRef.current.remove(fabricGroup);
           console.log("Grupo eliminado del canvas");
         }
 
         // Para cada elemento hijo, actualizar su posición y visibilidad
-        for (const childId of childrenIds) {
-          const childLayer = layersMap.get(childId);
-          if (!childLayer || !childLayer.objectId) continue;
+        // Obtener los datos del objeto hijo de Liveblocks desde el Padre
 
-          const childObjectId = childLayer.objectId;
-          console.log(`Procesando hijo: ${childObjectId}`);
+        const childsObjectsData = groupObjectData?.objects || [];
 
-          // Obtener los datos del objeto hijo de Liveblocks
-          const childObjectData = canvasObjects.get(childObjectId);
-          if (!childObjectData) {
-            console.log(
-              `No se encontraron datos para el hijo: ${childObjectId}`
-            );
-            continue;
-          }
+        for (const childObjectData of childsObjectsData) {
+          console.log(`Procesando hijo: ${childObjectData}`);
 
           // Calcular la posición absoluta del objeto
           let newLeft = childObjectData.left;
+          console.log("childObjectData.left", childObjectData.left);
           let newTop = childObjectData.top;
+          console.log("childObjectData.top", childObjectData.top);
 
-          // Si el objeto está dentro del grupo, sus coordenadas son relativas al grupo
-          if (childObjectData._groupId === groupObjectId) {
-            console.log(
-              "El objeto está dentro del grupo, calculando posición absoluta"
+          // Si tenemos la matriz de transformación del grupo, usarla para calcular
+          console.log("groupMatrix", groupMatrix);
+          if (groupMatrix) {
+            const relativePoint = new fabric.Point(
+              childObjectData.left || 0,
+              childObjectData.top || 0
             );
-
-            // Si tenemos la matriz de transformación del grupo, usarla para calcular
-            if (groupMatrix) {
-              const relativePoint = new fabric.Point(
-                childObjectData.left || 0,
-                childObjectData.top || 0
-              );
-              const absolutePoint = fabric.util.transformPoint(
-                relativePoint,
-                groupMatrix
-              );
-              newLeft = absolutePoint.x;
-              newTop = absolutePoint.y;
-            } else {
-              // Fallback: Calcular manualmente basado en la posición del grupo
-              newLeft = (childObjectData.left || 0) + groupPosition.left;
-              newTop = (childObjectData.top || 0) + groupPosition.top;
-            }
-
-            console.log(`Nueva posición: (${newLeft}, ${newTop})`);
-
-            // Actualizar los datos del objeto en Liveblocks
-            delete childObjectData._groupId; // Eliminar la referencia al grupo
-            childObjectData.left = newLeft;
-            childObjectData.top = newTop;
-            childObjectData.visible = true; // Asegurar que el objeto sea visible
-
-            // También aplicar la escala y rotación del grupo si es necesario
-            childObjectData.scaleX =
-              (childObjectData.scaleX || 1) * groupTransforms.scaleX;
-            childObjectData.scaleY =
-              (childObjectData.scaleY || 1) * groupTransforms.scaleY;
-            childObjectData.angle =
-              (childObjectData.angle || 0) + groupTransforms.angle;
-
-            // Guardar los cambios en Liveblocks
-            canvasObjects.set(childObjectId, childObjectData);
-            console.log(`Objeto ${childObjectId} actualizado en Liveblocks`);
-          }
-
-          // Si el objeto existe en el canvas, actualizar sus propiedades
-          const canvasObject = findObjectById(fabricRef.current, childObjectId);
-          if (canvasObject) {
-            console.log(
-              "Objeto encontrado en el canvas, actualizando propiedades"
+            console.log("relativePoint", relativePoint);
+            const absolutePoint = fabric.util.transformPoint(
+              relativePoint,
+              groupMatrix
             );
-            canvasObject.set({
-              left: newLeft,
-              top: newTop,
-              visible: true,
-              scaleX: childObjectData.scaleX,
-              scaleY: childObjectData.scaleY,
-              angle: childObjectData.angle,
-            });
-            delete (canvasObject as any)._groupId;
-            canvasObject.setCoords();
+            console.log("absolutePoint", absolutePoint);
+            newLeft = absolutePoint.x;
+            console.log("absolutePoint.x", absolutePoint.x);
+            newTop = absolutePoint.y;
+            console.log("absolutePoint.y", absolutePoint.y);
           } else {
-            // Si el objeto no existe en el canvas, recrearlo
-            try {
-              console.log("Recreando objeto en el canvas");
-              fabric.util.enlivenObjects(
-                [childObjectData],
-                function (enlivenedObjects: any[]) {
-                  const obj = enlivenedObjects[0];
-                  if (obj) {
-                    obj.set({
-                      left: newLeft,
-                      top: newTop,
-                      visible: true,
-                    });
-                    fabricRef.current?.add(obj);
-                    obj.setCoords();
-                  }
-                },
-                "fabric"
-              );
-            } catch (err) {
-              console.error("Error al recrear objeto:", err);
-            }
+            // Fallback: Calcular manualmente basado en la posición del grupo
+            newLeft = (childObjectData.left || 0) + groupPosition.left;
+            console.log("newLeft", newLeft);
+            newTop = (childObjectData.top || 0) + groupPosition.top;
+            console.log("newTop", newTop);
           }
+
+          console.log(`Nueva posición: (${newLeft}, ${newTop})`);
+
+          // Actualizar los datos del objeto en Liveblocks
+          console.log("Actualizando datos del objeto en Liveblocks");
+          console.log("childObjectData before", childObjectData);
+          delete childObjectData._groupId; // Eliminar la referencia al grupo
+          console.log("childObjectData after", childObjectData);
+          childObjectData.left = newLeft;
+          console.log("childObjectData.left", childObjectData.left);
+          childObjectData.top = newTop;
+          console.log("childObjectData.top", childObjectData.top);
+          childObjectData.visible = true; // Asegurar que el objeto sea visible
+          console.log("childObjectData.visible", childObjectData.visible);
+
+          // También aplicar la escala y rotación del grupo si es necesario
+          childObjectData.scaleX =
+            (childObjectData.scaleX || 1) * groupTransforms.scaleX;
+          console.log("childObjectData.scaleX", childObjectData.scaleX);
+          childObjectData.scaleY =
+            (childObjectData.scaleY || 1) * groupTransforms.scaleY;
+          console.log("childObjectData.scaleY", childObjectData.scaleY);
+          childObjectData.angle =
+            (childObjectData.angle || 0) + groupTransforms.angle;
+          console.log("childObjectData.angle", childObjectData.angle);
+
+          // Guardar los cambios en Liveblocks
+          canvasObjects.set(childObjectData.objectId, childObjectData);
+          console.log(
+            `Objeto ${childObjectData.objectId} actualizado en Liveblocks`
+          );
         }
 
         // Eliminar el grupo del almacenamiento de Liveblocks
@@ -835,7 +849,7 @@ export default function LeftSidebar({
             break;
           }
         }
-        console.log("LayerMap Before: ", layersMap);
+        console.log("LayerMap After: ", layersMap);
         const objectId = layer.objectId;
         console.log("Era hijo de otro grupo object: ", canvasObjects);
         console.log("El hijo objectId: ", objectId);
@@ -869,7 +883,9 @@ export default function LeftSidebar({
       }
 
       // Eliminar la capa del mapa
+      console.log("Eliminando capa del mapa: ", layerId);
       layersMap.delete(layerId);
+      console.log("LayerMap After: ", layersMap);
     },
     [fabricRef]
   );

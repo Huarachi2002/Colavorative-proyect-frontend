@@ -84,12 +84,12 @@ export default function CreateProjectPage() {
         console.log("Response Invitación", response);
 
         if (response.error) {
-          setError("Error al enviar invitaciones: " + response.error.message);
+          setError("Error: " + response.error.message);
         }
       }
 
       if (response.error) {
-        setError("Error al enviar invitaciones: " + response.error.message);
+        setError("Error: " + response.error.message);
         return;
       }
 

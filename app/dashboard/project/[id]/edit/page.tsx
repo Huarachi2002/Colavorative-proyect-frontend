@@ -188,9 +188,7 @@ export default function EditProjectPage() {
         console.log("Response Invitacion", responseInvitacion);
 
         if (responseInvitacion.error) {
-          setError(
-            "Error al enviar invitaciones: " + responseInvitacion.error.message
-          );
+          setError("Error: " + responseInvitacion.error.message);
         }
 
         toast.success("Invitaciones enviadas correctamente!");

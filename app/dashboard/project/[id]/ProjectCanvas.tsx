@@ -95,12 +95,16 @@ export default function ProjectCanvas() {
     const layersMap = storage.get("layers");
 
     // Si no hay objetos en el canvas, no hay nada que inicializar
+    console.log("Asegurando que las capas estén inicializadas...");
+    console.log("valor if", !canvasObjects || canvasObjects.size === 0);
     if (!canvasObjects || canvasObjects.size === 0) return false;
 
     // Mapear los grupos y sus hijos para restaurar las relaciones luego
     const groupRelations = new Map();
 
     // Identificar objetos que pertenecen a grupos primero
+    console.log("Recorriendo objetos del canvas...");
+    console.log("canvasObjects", canvasObjects);
     for (const [objectId, objectData] of canvasObjects.entries()) {
       if (objectData._groupId) {
         if (!groupRelations.has(objectData._groupId)) {
@@ -111,6 +115,8 @@ export default function ProjectCanvas() {
     }
 
     // Verificar si ya hay capas definidas
+    console.log("Verificando estructura de capas existente...");
+    console.log("layerStructure", layerStructure);
     if (
       layerStructure &&
       layerStructure.rootLayerIds &&
@@ -119,16 +125,23 @@ export default function ProjectCanvas() {
       let childrenMappedCorrectly = true;
 
       // Verificar si todas las capas tienen las relaciones de hijos correctas
+      console.log("Recorriendo capas existentes...");
+      console.log("layersMap", layersMap);
       for (const [layerId, layer] of layersMap.entries()) {
         // Si es un grupo, verificar si tiene los hijos correctos
+        console.log("layer: ", layer);
         if (layer.type === "group" && layer.objectId) {
           const expectedChildren = groupRelations.get(layer.objectId) || [];
-
+          console.log("expectedChildren: ", expectedChildren);
           // Encontrar las capas correspondientes a estos objectIds
           const childLayerIds = [];
           for (const childObjectId of expectedChildren) {
+            console.log("childObjectId: ", childObjectId);
+            console.log("layersMap", layersMap);
             for (const [childLayerId, childLayer] of layersMap.entries()) {
+              console.log("childLayer: ", childLayer);
               if (childLayer.objectId === childObjectId) {
+                console.log("childLayerId: ", childLayerId);
                 childLayerIds.push(childLayerId);
                 break;
               }
@@ -136,18 +149,28 @@ export default function ProjectCanvas() {
           }
 
           // Si los hijos no coinciden, necesitamos reconstruir
+          console.log("childLayerIds: ", childLayerIds);
           if (
             childLayerIds.length !== expectedChildren.length ||
             !layer.childrenIds ||
             layer.childrenIds.length !== childLayerIds.length
           ) {
+            console.log(
+              "Los IDs de hijos no coinciden, se requiere reconstrucción"
+            );
             childrenMappedCorrectly = false;
             break;
           }
 
           // Verificar que todos los IDs de hijo esperados estén presentes
+          console.log("childLayerIds: ", childLayerIds);
           for (const childId of childLayerIds) {
+            console.log("childId: ", childId);
+            // Verificar si el ID de hijo está en la capa
             if (!layer.childrenIds || !layer.childrenIds.includes(childId)) {
+              console.log(
+                "childId no está en childrenIds, se requiere reconstrucción"
+              );
               childrenMappedCorrectly = false;
               break;
             }
@@ -158,6 +181,7 @@ export default function ProjectCanvas() {
       }
 
       // Si todas las relaciones están correctas, no hacemos nada
+      console.log("childrenMappedCorrectly: ", childrenMappedCorrectly);
       if (childrenMappedCorrectly) {
         console.log(
           "Las relaciones entre grupos y elementos están correctas, no se requiere reconstrucción"
@@ -175,6 +199,7 @@ export default function ProjectCanvas() {
     // Creamos un mapa de los nombres personalizados actuales para preservarlos
     const customNames = new Map();
     for (const [layerId, layer] of layersMap.entries()) {
+      console.log("layer: ", layer);
       if (layer.objectId) {
         customNames.set(layer.objectId, layer.name);
       }
@@ -184,6 +209,7 @@ export default function ProjectCanvas() {
     const rootLayerIds: string[] = [];
 
     // Eliminar cualquier capa existente
+    console.log("Limpiando capas existentes...");
     for (const [key] of layersMap.entries()) {
       layersMap.delete(key);
     }
@@ -563,8 +589,6 @@ export default function ProjectCanvas() {
               fabricRef.current!.add(fabricObject);
               // Ahora solo llamamos a syncShapeInStorage, que ya hace la sincronización de capas
               syncShapeInStorage(fabricObject);
-              // Ya no es necesario llamar explícitamente a handleAddObjectToLayers
-              // handleAddObjectToLayers(fabricObject); <- ELIMINAR ESTA LÍNEA
             }
           } catch (error) {
             console.error(`Error al crear objeto ${element.type}:`, error);
