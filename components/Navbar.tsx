@@ -10,10 +10,14 @@ import { Button } from "./ui/button";
 import ShapesMenu from "./ShapesMenu";
 import ActiveUsers from "./users/ActiveUsers";
 import { NewThread } from "./comments/NewThread";
+import { ExportDialog } from "./ExportAngular/ExportDialog";
 
 const Navbar = ({
   activeElement,
   imageInputRef,
+  projectId,
+  projectName,
+  fabricRef,
   handleImageUpload,
   handleActiveElement,
 }: NavbarProps) => {
@@ -71,8 +75,14 @@ const Navbar = ({
           </li>
         ))}
       </ul>
-
-      <ActiveUsers />
+      <div className='flex items-center gap-2'>
+        <ExportDialog
+          projectId={projectId}
+          projectName={projectName}
+          fabricRef={fabricRef}
+        />
+        <ActiveUsers />
+      </div>
     </nav>
   );
 };

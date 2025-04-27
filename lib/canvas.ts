@@ -864,3 +864,312 @@ export const syncNewObjectWithLayers = (
     rootLayerIds: [...layerStructure.get("rootLayerIds"), layerData.id],
   });
 };
+
+import { nanoid } from "nanoid";
+import { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
+
+// Función para sincronizar un nuevo objeto Fabric con Liveblocks
+export function syncShapeToLiveblocks(
+  obj: fabric.Object,
+  canvasObjects: LiveMap<string, any>
+) {
+  // Asegurar que el objeto tiene un ID
+  if (!obj.objectId) {
+    obj.objectId = `obj-${nanoid()}`;
+  }
+
+  // Convertir el objeto Fabric a un formato serializable para Liveblocks
+  const shapeData = {
+    id: obj.objectId,
+    type: obj.type || "unknown",
+    version: 1,
+    x: obj.left || 0,
+    y: obj.top || 0,
+    width: obj.width || 100,
+    height: obj.height || 100,
+    scaleX: obj.scaleX || 1,
+    scaleY: obj.scaleY || 1,
+    angle: obj.angle || 0,
+    originX: obj.originX || "left",
+    originY: obj.originY || "top",
+  };
+
+  // Para cada tipo de objeto, añadir propiedades específicas
+  if (obj.type === "path" || obj instanceof fabric.Path) {
+    Object.assign(shapeData, {
+      path: (obj as fabric.Path).path,
+      fill: (obj as fabric.Path).fill,
+      stroke: (obj as fabric.Path).stroke,
+      strokeWidth: (obj as fabric.Path).strokeWidth,
+    });
+  } else if (obj.type === "rect" || obj instanceof fabric.Rect) {
+    Object.assign(shapeData, {
+      fill: (obj as fabric.Rect).fill,
+      stroke: (obj as fabric.Rect).stroke,
+      strokeWidth: (obj as fabric.Rect).strokeWidth,
+      rx: (obj as fabric.Rect).rx,
+      ry: (obj as fabric.Rect).ry,
+    });
+  } else if (obj.type === "circle" || obj instanceof fabric.Circle) {
+    Object.assign(shapeData, {
+      fill: (obj as fabric.Circle).fill,
+      stroke: (obj as fabric.Circle).stroke,
+      strokeWidth: (obj as fabric.Circle).strokeWidth,
+      radius: (obj as fabric.Circle).radius,
+    });
+  } else if (obj.type === "text" || obj instanceof fabric.Text) {
+    Object.assign(shapeData, {
+      text: (obj as fabric.Text).text,
+      fontSize: (obj as fabric.Text).fontSize,
+      fontFamily: (obj as fabric.Text).fontFamily,
+      fill: (obj as fabric.Text).fill,
+    });
+  } else if (obj.type === "group" || obj instanceof fabric.Group) {
+    const group = obj as fabric.Group;
+
+    // Para grupos complejos, serializar solo propiedades básicas
+    Object.assign(shapeData, {
+      subType: group.data?.element || group.data?.widget || "generic",
+      objectData: group.data || {},
+      objects: group.getObjects().map((groupObj) => {
+        // Simplificación para objetos dentro de grupos
+        return {
+          type: groupObj.type || "unknown",
+          left: groupObj.left || 0,
+          top: groupObj.top || 0,
+          width: groupObj.width || 0,
+          height: groupObj.height || 0,
+          // Otras propiedades relevantes según el tipo
+          ...(groupObj instanceof fabric.Text
+            ? { text: (groupObj as fabric.Text).text }
+            : {}),
+          ...(groupObj instanceof fabric.Path
+            ? { path: (groupObj as fabric.Path).path }
+            : {}),
+        };
+      }),
+    });
+  }
+
+  // Si el objeto es un SVG importado, guardar datos adicionales
+  if (obj.data?.svg) {
+    Object.assign(shapeData, {
+      svgData: obj.data.svg,
+    });
+  }
+
+  // Si el objeto es un componente de UI, guardar datos adicionales
+  if (obj.data?.element) {
+    Object.assign(shapeData, {
+      element: obj.data.element,
+      elementProps: obj.data,
+    });
+  }
+
+  // Si el objeto es un widget interactivo, guardar datos adicionales
+  if (obj.data?.widget) {
+    Object.assign(shapeData, {
+      widget: obj.data.widget,
+      widgetProps: obj.data,
+    });
+  }
+
+  // Añadir a Liveblocks
+  canvasObjects.set(shapeData.id as string, shapeData);
+}
+
+// Función para recrear un objeto Fabric desde datos de Liveblocks
+export function createFabricObjectFromLiveblocks(
+  data: any
+): fabric.Object | null {
+  try {
+    let obj: fabric.Object | null = null;
+
+    switch (data.type) {
+      case "path":
+        obj = new fabric.Path(data.path, {
+          left: data.x,
+          top: data.y,
+          fill: data.fill,
+          stroke: data.stroke,
+          strokeWidth: data.strokeWidth,
+          scaleX: data.scaleX,
+          scaleY: data.scaleY,
+          angle: data.angle,
+          objectId: data.id,
+        });
+        break;
+
+      case "rect":
+        obj = new fabric.Rect({
+          left: data.x,
+          top: data.y,
+          width: data.width,
+          height: data.height,
+          fill: data.fill,
+          stroke: data.stroke,
+          strokeWidth: data.strokeWidth,
+          rx: data.rx,
+          ry: data.ry,
+          scaleX: data.scaleX,
+          scaleY: data.scaleY,
+          angle: data.angle,
+          objectId: data.id,
+        });
+        break;
+
+      case "circle":
+        obj = new fabric.Circle({
+          left: data.x,
+          top: data.y,
+          radius: data.radius,
+          fill: data.fill,
+          stroke: data.stroke,
+          strokeWidth: data.strokeWidth,
+          scaleX: data.scaleX,
+          scaleY: data.scaleY,
+          angle: data.angle,
+          objectId: data.id,
+        });
+        break;
+
+      case "text":
+        obj = new fabric.Text(data.text, {
+          left: data.x,
+          top: data.y,
+          fontSize: data.fontSize,
+          fontFamily: data.fontFamily,
+          fill: data.fill,
+          scaleX: data.scaleX,
+          scaleY: data.scaleY,
+          angle: data.angle,
+          objectId: data.id,
+        });
+        break;
+
+      case "group":
+        // Recrear grupos según su subtipo
+        if (data.subType === "button" && data.elementProps) {
+          // Recrear un botón
+          const rect = new fabric.Rect({
+            width: data.elementProps.width || 120,
+            height: data.elementProps.height || 40,
+            rx: data.elementProps.borderRadius || 4,
+            ry: data.elementProps.borderRadius || 4,
+            fill: data.elementProps.fill || "#4C7BF4",
+            shadow: new fabric.Shadow({
+              color: "rgba(0,0,0,0.2)",
+              blur: 4,
+              offsetX: 0,
+              offsetY: 2,
+            }),
+          });
+
+          const text = new fabric.Text(data.elementProps.label || "Button", {
+            fontSize: data.elementProps.fontSize || 16,
+            fill: data.elementProps.textColor || "#FFFFFF",
+            fontFamily: data.elementProps.fontFamily || "Arial",
+            originX: "center",
+            originY: "center",
+            left: rect.width! / 2,
+            top: rect.height! / 2,
+          });
+
+          obj = new fabric.Group([rect, text], {
+            left: data.x,
+            top: data.y,
+            scaleX: data.scaleX,
+            scaleY: data.scaleY,
+            angle: data.angle,
+            objectId: data.id,
+          });
+
+          // Guardar datos del elemento para futuras ediciones
+          if (obj) obj.data = data.elementProps;
+        } else if (data.svgData) {
+          // Crear grupo a partir de SVG
+          fabric.loadSVGFromString(data.svgData, (objects, options) => {
+            obj = fabric.util.groupSVGElements(objects, options);
+
+            if (obj) {
+              obj.set({
+                left: data.x,
+                top: data.y,
+                scaleX: data.scaleX,
+                scaleY: data.scaleY,
+                angle: data.angle,
+                objectId: data.id,
+              });
+
+              // Guardar datos SVG para futuras ediciones
+              obj.data = { svg: data.svgData };
+            }
+          });
+        } else {
+          // Manejo general para otros tipos de grupos
+          obj = new fabric.Group();
+          obj.set({
+            left: data.x,
+            top: data.y,
+            scaleX: data.scaleX,
+            scaleY: data.scaleY,
+            angle: data.angle,
+            objectId: data.id,
+          });
+        }
+        break;
+    }
+
+    return obj;
+  } catch (error) {
+    console.error("Error recreando objeto desde Liveblocks:", error);
+    return null;
+  }
+}
+
+// Función para actualizar la posición/propiedades de un objeto existente
+export function updateLiveblocksObject(
+  obj: fabric.Object,
+  canvasObjects: LiveMap<string, any>
+) {
+  const id = obj.objectId as string;
+  if (!id || !canvasObjects.has(id)) return;
+
+  // Obtener el objeto existente
+  const storedObj = canvasObjects.get(id);
+
+  // Actualizar propiedades comunes
+  const updatedObj = {
+    ...storedObj,
+    x: obj.left || 0,
+    y: obj.top || 0,
+    scaleX: obj.scaleX || 1,
+    scaleY: obj.scaleY || 1,
+    angle: obj.angle || 0,
+  };
+
+  // Actualizar propiedades específicas del tipo
+  if (obj.type === "path" || obj instanceof fabric.Path) {
+    updatedObj.path = (obj as fabric.Path).path;
+    updatedObj.fill = (obj as fabric.Path).fill;
+    updatedObj.stroke = (obj as fabric.Path).stroke;
+    updatedObj.strokeWidth = (obj as fabric.Path).strokeWidth;
+  } else if (obj.type === "text" || obj instanceof fabric.Text) {
+    updatedObj.text = (obj as fabric.Text).text;
+    updatedObj.fontSize = (obj as fabric.Text).fontSize;
+    updatedObj.fill = (obj as fabric.Text).fill;
+  }
+
+  // Guardar en Liveblocks
+  canvasObjects.set(id, updatedObj);
+}
+
+// Función para eliminar un objeto de Liveblocks
+export function deleteLiveblocksObject(
+  id: string,
+  canvasObjects: LiveMap<string, any>
+) {
+  if (canvasObjects.has(id)) {
+    canvasObjects.delete(id);
+  }
+}

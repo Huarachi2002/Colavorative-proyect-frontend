@@ -88,6 +88,9 @@ export default function ProjectCanvas() {
     icon: "",
   });
 
+  // Añadir un nuevo estado para controlar la pestaña activa en el panel derecho
+  const [activeRightTab, setActiveRightTab] = useState("Edit");
+
   // Función para asegurarse de que la estructura de capas esté inicializada y sincronizada con los objetos del canvas
   const ensureLayersInitialized = useMutation(({ storage }) => {
     const canvasObjects = storage.get("canvasObjects");
@@ -862,6 +865,9 @@ export default function ProjectCanvas() {
         activeElement={activeElement}
         handleActiveElement={handleActiveElement}
         imageInputRef={imageInputRef}
+        projectId={projectId}
+        fabricRef={fabricRef}
+        projectName='Projecto Canvas Angular'
         handleImageUpload={(e: any) => {
           e.stopPropagation();
 
@@ -887,6 +893,8 @@ export default function ProjectCanvas() {
           isEditingRef={isEditingRef}
           activeObjectRef={activeObjectRef}
           syncShapeInStorage={syncShapeInStorage}
+          activeTab={activeRightTab}
+          setActiveTab={setActiveRightTab}
         />
       </section>
     </main>

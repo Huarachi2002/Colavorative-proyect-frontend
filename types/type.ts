@@ -110,6 +110,10 @@ export type ImageUpload = {
 };
 
 export type RightSidebarProps = {
+  // adicional
+  activeTab?: string;
+  setActiveTab?: (tab: string) => void;
+
   elementAttributes: Attributes;
   setElementAttributes: React.Dispatch<React.SetStateAction<Attributes>>;
   fabricRef: React.RefObject<fabric.Canvas | null>;
@@ -121,6 +125,9 @@ export type RightSidebarProps = {
 export type NavbarProps = {
   activeElement: ActiveElement;
   imageInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  projectId: string;
+  projectName: string;
+  fabricRef: React.MutableRefObject<fabric.Canvas | null>;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleActiveElement: (element: ActiveElement) => void;
 };

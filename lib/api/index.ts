@@ -329,3 +329,11 @@ export const usersApi = {
       method: "GET",
     }),
 };
+
+export const exportApi = {
+  exportProject: (data: any) =>
+    fetchApi("/export/angular", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
