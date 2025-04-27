@@ -86,7 +86,7 @@ export function ExportDialog({
       const originalCanvas = fabricRef.current.toDataURL({
         format: "png",
         quality: 1,
-        multiplier: 1, // Reducido aún más para menor tamaño
+        multiplier: 1, // Reducido para menor tamaño
       });
 
       // Comprimir la imagen usando un canvas temporal
@@ -96,6 +96,21 @@ export function ExportDialog({
       setProgress(30);
       setStep("Enviando imagen al servidor...");
 
+      // Preparar datos para el backend según la estructura esperada por CreateAngularDto
+      const requestData = {
+        projectId,
+        projectName,
+        canvasImage: compressedImage,
+        options: {
+          name: options.options.name || projectName,
+          version: options.options.version || options.angularVersion,
+          includeRouting: options.options.includeRouting || false,
+          responsiveLayout: options.options.responsiveLayout || false,
+          cssFramework: options.options.cssFramework || "none",
+          generateComponents: options.options.generateComponents || false,
+        },
+      };
+
       // Usaremos fetch directamente para tener más control sobre la respuesta
       const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "/export/angular";
       console.log("API URL:", apiUrl);
@@ -104,31 +119,31 @@ export function ExportDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          projectId,
-          projectName,
-          canvasImage: compressedImage,
-          options,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       // Verificar si la respuesta es exitosa
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Error en la respuesta del servidor: ${errorText}`);
+        console.error("Error del servidor:", response.status, errorText);
+        throw new Error(
+          `Error en la respuesta del servidor: ${response.status} - ${errorText}`
+        );
       }
 
       setProgress(60);
       setStep("Generando proyecto Angular...");
 
-      // Obtener el contenido como blob (archivo binario)
+      // Obtener el contenido como blob (archivo binario) con el tipo MIME correcto
       const blobData = await response.blob();
 
       setProgress(90);
       setStep("Preparando descarga...");
 
       // Crear URL para descarga
-      const url = window.URL.createObjectURL(blobData);
+      const url = window.URL.createObjectURL(
+        new Blob([blobData], { type: "application/zip" })
+      );
       const a = document.createElement("a");
       a.href = url;
       a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-angular-project.zip`;
