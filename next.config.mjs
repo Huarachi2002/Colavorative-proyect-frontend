@@ -21,6 +21,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Configuración para Docker
+  // output: "standalone",
 };
 
 export default nextConfig;

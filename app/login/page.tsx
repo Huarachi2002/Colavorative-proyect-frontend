@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import Image from "next/image";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import Loader from "@/components/Loader";
 
-export default function LoginPage() {
+// Componente para manejar los parámetros de búsqueda
+function LoginContent() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { login } = useAuth();
   const searchParams = useSearchParams();
@@ -72,5 +74,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<Loader />}>
+      <LoginContent />
+    </Suspense>
   );
 }

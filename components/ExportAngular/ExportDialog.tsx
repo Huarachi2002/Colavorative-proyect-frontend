@@ -121,6 +121,7 @@ export function ExportDialog({
         },
         body: JSON.stringify(requestData),
       });
+      console.log("Response from server:", response);
 
       // Verificar si la respuesta es exitosa
       if (!response.ok) {
