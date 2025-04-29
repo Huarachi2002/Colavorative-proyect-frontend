@@ -126,21 +126,6 @@ export function ExportOptions({ projectName, onExport }: ExportOptionsProps) {
         <TabsContent value='advanced' className='space-y-4 pt-4'>
           <div className='space-y-4'>
             <div>
-              <Label htmlFor='angularVersion'>Versión de Angular</Label>
-              <select
-                id='angularVersion'
-                className='mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm'
-                value={options.angularVersion}
-                onChange={(e) => handleVersionChange(e.target.value)}
-              >
-                <option value='17.0.0'>17.0.0 (Actual)</option>
-                <option value='16.2.0'>16.2.0</option>
-                <option value='15.2.0'>15.2.0</option>
-                <option value='14.3.0'>14.3.0</option>
-              </select>
-            </div>
-
-            <div>
               <Label htmlFor='cssFramework'>Framework CSS</Label>
               <select
                 id='cssFramework'

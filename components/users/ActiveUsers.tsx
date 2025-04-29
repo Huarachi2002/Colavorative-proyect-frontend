@@ -6,7 +6,6 @@ import { useOthers, useSelf } from "@/liveblocks.config";
 
 import styles from "./index.module.css";
 
-import { generateRandomName } from "@/lib/utils";
 import { Avatar } from "./Avatar";
 import { useAuth } from "../providers/AuthProvider";
 
@@ -22,14 +21,22 @@ const ActiveUsers = () => {
       <div className='flex items-center justify-center gap-1 py-2'>
         <div className='flex pl-3'>
           {currentUser && (
-            <Avatar name='Yo' otherStyles='border-[3px] border-primary-green' />
+            <Avatar
+              src={
+                currentUser.info?.avatar ||
+                `https://avatar.vercel.sh/${currentUser.connectionId}`
+              }
+              name='Yo'
+              otherStyles='border-[3px] border-primary-green'
+            />
           )}
 
-          {users.slice(0, 3).map(({ connectionId }) => {
+          {users.slice(0, 3).map(({ connectionId, info }) => {
             return (
               <Avatar
                 key={connectionId}
-                name={user!.name} //TODO user name
+                src={info?.avatar || `https://avatar.vercel.sh/${connectionId}`}
+                name={info?.name || user?.name || "Usuario"}
                 otherStyles='-ml-3'
               />
             );
@@ -41,7 +48,7 @@ const ActiveUsers = () => {
         </div>
       </div>
     );
-  }, [users.length]);
+  }, [users, currentUser, user, hasMoreUsers]);
 
   return memorizedUsers;
 };

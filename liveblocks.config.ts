@@ -2,8 +2,14 @@ import { createClient, LiveMap, LiveObject } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
 import { Layer, ReactionEvent } from "./types/type";
 
+// Determinar el entorno actual
+const isDevelopment = process.env.NODE_ENV === "development";
+
+// Configurar el cliente con la clave apropiada según el entorno
 const client = createClient({
-  publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!,
+  publicApiKey: isDevelopment
+    ? process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!
+    : process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION!,
 });
 
 // Ejemplo de tipados del estado compartido

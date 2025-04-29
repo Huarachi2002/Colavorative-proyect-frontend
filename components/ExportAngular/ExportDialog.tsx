@@ -103,7 +103,6 @@ export function ExportDialog({
         canvasImage: compressedImage,
         options: {
           name: options.options.name || projectName,
-          version: options.options.version || options.angularVersion,
           includeRouting: options.options.includeRouting || false,
           responsiveLayout: options.options.responsiveLayout || false,
           cssFramework: options.options.cssFramework || "none",

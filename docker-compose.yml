@@ -10,29 +10,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-      - LIVEBLOCKS_SECRET_KEY=${LIVEBLOCKS_SECRET_KEY}
+      - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION=${NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION}
     restart: always
     volumes:
       - ./public:/app/public
-      # Para desarrollo, puedes descomentar estas líneas:
-      # - ./app:/app/app
-      # - ./components:/app/components
-      # - ./lib:/app/lib
-    # Si necesitas una base de datos, puedes descomentar y ajustar:
-    # depends_on:
-    #   - database
-
-  # Si usas una base de datos con Prisma, puedes descomentar y ajustar:
-  # database:
-  #   image: postgres:14
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_DB=tigma
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-# Sisas a base de datos, asegura la persistencia de datos:
-# volumes:
-#   postgres_data:
