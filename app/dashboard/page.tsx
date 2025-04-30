@@ -11,12 +11,19 @@ import {
   Clock,
   CopyCheckIcon,
   EditIcon,
+  HelpCircle,
   Plus,
   Trash2Icon,
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -38,6 +45,46 @@ export default function DashboardPage() {
     {}
   );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Enlaces de ayuda para el menú desplegable
+  const helpLinks = [
+    {
+      title: "Autenticacion",
+      url: "https://drive.google.com/file/d/1p_sl-Ckxlg0ZGCC6llWrQRuM6hKPT_nn/view?usp=sharing",
+    },
+    {
+      title: "Gestionar Salas (Crear)",
+      url: "https://drive.google.com/file/d/1_i7SHBBkfkf11XGrmka6QpUSGy5_tyqj/view?usp=sharing",
+    },
+    {
+      title: "Gestionar Salas (Editar)",
+      url: "https://drive.google.com/file/d/1uSDJ4K2KScohwJjxdCVAqmFRbxgsGmAB/view?usp=sharing",
+    },
+    {
+      title: "Gestionar Salas (Eliminar)",
+      url: "https://drive.google.com/file/d/1Ojrela54EON7RJzq5twaND_3VDj1DKWf/view?usp=sharing",
+    },
+    {
+      title: "Gestionar Cuenta de Usuario",
+      url: "https://drive.google.com/file/d/1UfRogZ_efs6YC8qrdfdQRCZ_up2_LFLV/view?usp=sharing",
+    },
+    {
+      title: "Unirse a una Sala",
+      url: "https://drive.google.com/file/d/1DOCKWaTnWx9q3cZkXo5pcubllUmvSH5A/view?usp=sharing",
+    },
+    {
+      title: "Diseñar Canvas",
+      url: "https://drive.google.com/file/d/1-7WAUfgbe1XHFWap4lRVMVj4A0bmMrhS/view?usp=sharing",
+    },
+    {
+      title: "Importar Boceto",
+      url: "https://drive.google.com/file/d/1xBmoAlhykViNJneETxrfcDdTMNxW3wQI/view?usp=sharing",
+    },
+    {
+      title: "Exportar Proyecto Angular",
+      url: "https://drive.google.com/file/d/1f5LvX4gVMKhU51h5WRoeAD3vH02lxML0/view?usp=sharing",
+    },
+  ];
 
   const handleDeleteProject = async () => {
     try {
@@ -233,6 +280,27 @@ export default function DashboardPage() {
             <Plus className='mr-2 h-4 w-4' />
             Crear Proyecto
           </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='outline' className='ml-2'>
+                <HelpCircle className='mr-2 h-4 w-4' />
+                Ayuda
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {helpLinks.map((link, index) => (
+                <DropdownMenuItem key={index} asChild>
+                  <Link
+                    href={link.url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                  >
+                    {link.title}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
