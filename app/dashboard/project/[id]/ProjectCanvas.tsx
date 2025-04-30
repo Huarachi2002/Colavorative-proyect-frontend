@@ -32,6 +32,7 @@ import {
   createTriangle,
   handleImageUpload,
 } from "@/lib/shapes";
+import { v4 as uuidv4 } from "uuid";
 import { useParams } from "next/navigation";
 
 export default function ProjectCanvas() {
@@ -477,27 +478,46 @@ export default function ProjectCanvas() {
   };
 
   useEffect(() => {
-    if (!fabricRef.current) return;
+    console.log("🔍 useEffect para importación ejecutándose");
+    console.log("fabricRef.current disponible:", !!fabricRef.current);
 
-    const loadProjectObjects = async () => {
+    // Definir una función que se ejecutará cuando el canvas esté listo
+    const loadImportedObjects = () => {
+      console.log("🔄 Intentando cargar objetos importados...");
       try {
         // Verificar si hay objetos importados en localStorage
         const importedObjectsStr = localStorage.getItem(
           "importedSketchObjects"
         );
+        console.log(
+          "📦 Datos en localStorage:",
+          importedObjectsStr ? "Encontrados" : "No encontrados"
+        );
+
         if (!importedObjectsStr) return;
+
+        console.log("Encontrados objetos importados en localStorage");
 
         // Parsear los objetos importados
         const importedObjects = JSON.parse(importedObjectsStr);
-        if (!importedObjects || !importedObjects.length) return;
-        // Limpiar localStorage después de cargar los objetos
-        localStorage.removeItem("importedSketchObjects");
+        if (!importedObjects || !importedObjects.length) {
+          console.log("⚠️ No hay objetos válidos para importar");
+          localStorage.removeItem("importedSketchObjects");
+          return;
+        }
+
+        console.log(
+          `✅ Importando ${importedObjects.length} objetos al canvas`
+        );
+
         // Para cada objeto importado, crear el objeto Fabric correspondiente
-        importedObjects.forEach((element: any) => {
+        const createdObjects: fabric.Object[] = [];
+
+        for (const element of importedObjects) {
           try {
             const simulatedPointer = {
-              x: element.left || 0,
-              y: element.top || 0,
+              x: element.left || 100,
+              y: element.top || 100,
             } as unknown as PointerEvent;
 
             let fabricObject: fabric.Object | null = null;
@@ -507,8 +527,8 @@ export default function ProjectCanvas() {
                 fabricObject = createRectangle(simulatedPointer);
                 if (fabricObject) {
                   fabricObject.set({
-                    left: element.left,
-                    top: element.top,
+                    left: element.left || 100,
+                    top: element.top || 100,
                     width: element.width || 100,
                     height: element.height || 100,
                     fill: element.fill || "#aabbcc",
@@ -519,8 +539,8 @@ export default function ProjectCanvas() {
                 fabricObject = createTriangle(simulatedPointer);
                 if (fabricObject) {
                   fabricObject.set({
-                    left: element.left,
-                    top: element.top,
+                    left: element.left || 100,
+                    top: element.top || 100,
                     width: element.width || 100,
                     height: element.height || 100,
                     fill: element.fill || "#aabbcc",
@@ -532,8 +552,8 @@ export default function ProjectCanvas() {
                 fabricObject = createCircle(simulatedPointer);
                 if (fabricObject) {
                   fabricObject.set({
-                    left: element.left,
-                    top: element.top,
+                    left: element.left || 100,
+                    top: element.top || 100,
                     radius: element.radius || 50,
                     fill: element.fill || "#aabbcc",
                   } as fabric.ICircleOptions);
@@ -542,18 +562,24 @@ export default function ProjectCanvas() {
 
               case "line":
                 fabricObject = createLine(simulatedPointer);
-                if (
-                  fabricObject &&
-                  element.points &&
-                  element.points.length === 4
-                ) {
-                  fabricObject.set({
-                    x1: element.points[0],
-                    y1: element.points[1],
-                    x2: element.points[2],
-                    y2: element.points[3],
-                    stroke: element.stroke || "#aabbcc",
-                  } as fabric.ILineOptions);
+                if (fabricObject) {
+                  if (element.points && element.points.length === 4) {
+                    fabricObject.set({
+                      x1: element.points[0],
+                      y1: element.points[1],
+                      x2: element.points[2],
+                      y2: element.points[3],
+                      stroke: element.stroke || "#aabbcc",
+                    } as fabric.ILineOptions);
+                  } else {
+                    fabricObject.set({
+                      x1: element.left || 100,
+                      y1: element.top || 100,
+                      x2: (element.left || 100) + 100,
+                      y2: element.top || 100,
+                      stroke: element.stroke || "#aabbcc",
+                    } as fabric.ILineOptions);
+                  }
                 }
                 break;
 
@@ -564,8 +590,8 @@ export default function ProjectCanvas() {
                 );
                 if (fabricObject) {
                   fabricObject.set({
-                    left: element.left,
-                    top: element.top,
+                    left: element.left || 100,
+                    top: element.top || 100,
                     fill: element.fill || "#aabbcc",
                     fontFamily: element.fontFamily || "Helvetica",
                     fontSize: element.fontSize || 36,
@@ -577,38 +603,87 @@ export default function ProjectCanvas() {
               case "path":
                 if (element.path) {
                   fabricObject = new fabric.Path(element.path, {
-                    left: element.left,
-                    top: element.top,
+                    left: element.left || 100,
+                    top: element.top || 100,
                     fill: element.fill || "#000000",
                     stroke: element.stroke || "#000000",
                     strokeWidth: element.strokeWidth || 1,
-                    objectId: element.objectId,
+                    objectId: element.objectId || uuidv4(),
                   } as fabric.IPathOptions);
                 }
+                break;
+
               default:
+                console.warn(
+                  `⚠️ Tipo de elemento no soportado: ${element.type}`
+                );
                 break;
             }
+
             if (fabricObject) {
+              // Asegurarnos que el objeto tiene objectId antes de agregarlo
+              if (!(fabricObject as any).objectId) {
+                (fabricObject as any).objectId = uuidv4();
+              }
+
+              // Añadir el objeto al canvas
               fabricRef.current!.add(fabricObject);
-              // Ahora solo llamamos a syncShapeInStorage, que ya hace la sincronización de capas
+              createdObjects.push(fabricObject);
+
+              // Sincronizar el objeto con el almacenamiento
               syncShapeInStorage(fabricObject);
+              console.log(
+                `✓ Objeto ${element.type} importado con ID: ${(fabricObject as any).objectId}`
+              );
             }
           } catch (error) {
-            console.error(`Error al crear objeto ${element.type}:`, error);
+            console.error(`❌ Error al crear objeto ${element.type}:`, error);
           }
-        });
+        }
 
         // Renderizar el canvas
         fabricRef.current!.renderAll();
 
-        // Limpiar localStorage después de cargar los objetos
+        console.log(
+          `📊 Se importaron ${createdObjects.length} de ${importedObjects.length} objetos`
+        );
+
+        // Limpiar localStorage solo después de procesar con éxito
         localStorage.removeItem("importedSketchObjects");
+
+        // Forzar una inicialización de capas
+        ensureLayersInitialized();
+        setLayersInitialized(true);
       } catch (error) {
-        console.error("Error loading imported objects:", error);
+        console.error("❌ Error cargando objetos importados:", error);
       }
     };
-    loadProjectObjects();
-  }, [projectId, syncShapeInStorage]); // Ya no dependemos de handleAddObjectToLayers
+
+    // Si el canvas ya está inicializado, cargamos los objetos inmediatamente
+    if (fabricRef.current) {
+      console.log("🎨 Canvas ya inicializado, cargando objetos...");
+      loadImportedObjects();
+    } else {
+      // Si el canvas no está listo, esperamos un momento y verificamos de nuevo
+      console.log("⏳ Canvas no disponible, esperando...");
+      const checkInterval = setInterval(() => {
+        if (fabricRef.current) {
+          console.log("🎨 Canvas ahora disponible, cargando objetos...");
+          clearInterval(checkInterval);
+          loadImportedObjects();
+        }
+      }, 500);
+
+      // Limpiar el intervalo después de un tiempo razonable para evitar problemas
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.log("⏱️ Tiempo de espera agotado para la carga de objetos");
+      }, 10000);
+
+      // Limpiar el intervalo cuando el componente se desmonte
+      return () => clearInterval(checkInterval);
+    }
+  }, []);
 
   useEffect(() => {
     const canvas = initializeFabric({ canvasRef, fabricRef });

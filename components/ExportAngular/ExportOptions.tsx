@@ -16,10 +16,8 @@ interface ExportOptions {
   includeAssets: boolean;
   includeComments: boolean;
   optimizeForProduction: boolean;
-  angularVersion: string;
   options: {
     name: string;
-    version: string;
     includeRouting: boolean;
     responsiveLayout: boolean;
     cssFramework: string;
@@ -33,10 +31,8 @@ export function ExportOptions({ projectName, onExport }: ExportOptionsProps) {
     includeAssets: true,
     includeComments: false,
     optimizeForProduction: false,
-    angularVersion: "17.0.0",
     options: {
       name: projectName || "angular-project", // Usar el nombre del proyecto
-      version: "17.0.0", // Valor inicial igual a angularVersion
       includeRouting: true,
       responsiveLayout: true,
       cssFramework: "bootstrap", // Opciones: bootstrap, material, none
@@ -63,10 +59,8 @@ export function ExportOptions({ projectName, onExport }: ExportOptionsProps) {
   const handleVersionChange = (version: string) => {
     setOptions({
       ...options,
-      angularVersion: version,
       options: {
         ...options.options,
-        version: version,
       },
     });
   };
@@ -77,7 +71,6 @@ export function ExportOptions({ projectName, onExport }: ExportOptionsProps) {
       ...options,
       options: {
         ...options.options,
-        version: options.angularVersion, // Asegurar que la versión esté sincronizada
       },
     };
     onExport(exportOptions);
@@ -95,33 +88,8 @@ export function ExportOptions({ projectName, onExport }: ExportOptionsProps) {
 
       <Tabs defaultValue='general' className='w-full'>
         <TabsList className='grid w-full grid-cols-2'>
-          <TabsTrigger value='general'>General</TabsTrigger>
-          <TabsTrigger value='advanced'>Avanzado</TabsTrigger>
+          <TabsTrigger value='advanced'>Opciones</TabsTrigger>
         </TabsList>
-        <TabsContent value='general' className='space-y-4 pt-4'>
-          <div className='space-y-4'>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id='includeAssets'
-                checked={options.includeAssets}
-                onCheckedChange={(checked) =>
-                  handleChange("includeAssets", checked === true)
-                }
-              />
-              <Label htmlFor='includeAssets'>Incluir recursos gráficos</Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id='includeComments'
-                checked={options.includeComments}
-                onCheckedChange={(checked) =>
-                  handleChange("includeComments", checked === true)
-                }
-              />
-              <Label htmlFor='includeComments'>Incluir comentarios</Label>
-            </div>
-          </div>
-        </TabsContent>
 
         <TabsContent value='advanced' className='space-y-4 pt-4'>
           <div className='space-y-4'>
